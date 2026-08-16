@@ -18,8 +18,9 @@ class BtopWidgetProvider : AppWidgetProvider() {
             val bg = Prefs.getBgColor(context)
             val username = Prefs.getUsername(context)
             val hostname = Prefs.getHostname(context)
+            val frameWidth = WidgetSizing.charWidth(context, appWidgetManager, widgetId)
 
-            val text = BtopRenderer.render(context, stats, username, hostname)
+            val text = BtopRenderer.render(context, stats, username, hostname, frameWidth)
 
             val views = RemoteViews(context.packageName, R.layout.widget_btop)
             views.setTextViewText(R.id.widget_text, text)
@@ -47,6 +48,17 @@ class BtopWidgetProvider : AppWidgetProvider() {
         for (widgetId in appWidgetIds) {
             updateWidget(context, appWidgetManager, widgetId)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: android.os.Bundle
+    ) {
+        // le widget a ete redimensionne sur l'ecran d'accueil -> redessine
+        // au nouveau format plutot que d'attendre le prochain cycle de 15min
+        updateWidget(context, appWidgetManager, appWidgetId)
     }
 
     override fun onEnabled(context: Context) {

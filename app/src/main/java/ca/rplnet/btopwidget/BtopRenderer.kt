@@ -2,13 +2,15 @@ package ca.rplnet.btopwidget
 
 object BtopRenderer {
 
-    // largeur interne du cadre en caracteres — fixe pour l'instant, un widget
-    // plus large va juste avoir de l'espace vide autour (amelioration future:
-    // calculer dynamiquement depuis les dimensions reelles du widget)
-    private const val WIDTH = 42
-    private const val GRAPH_WIDTH = 28
+    // labels a gauche ("cpu(top)  ", "net ↑    ", etc.) + colonne de valeur a
+    // droite ("100%", "999K/s") prennent un espace fixe, le reste va au graph
+    private const val LABEL_WIDTH = 9
+    private const val VALUE_RESERVED = 8
 
-    fun render(context: android.content.Context, s: Stats, username: String, hostname: String): String {
+    fun render(context: android.content.Context, s: Stats, username: String, hostname: String, frameWidth: Int): String {
+        val width = frameWidth.coerceAtLeast(28)
+        val graphWidth = (width - LABEL_WIDTH - VALUE_RESERVED).coerceAtLeast(6)
+
         val ramHistory = HistoryStore.push(context, "ram", s.ramUsedPct)
         val cpuHistory = if (s.cpuPct != null) {
             HistoryStore.push(context, "cpu", s.cpuPct)
@@ -20,54 +22,53 @@ object BtopRenderer {
 
         val sb = StringBuilder()
 
-        // cadre du haut avec user@host a gauche, uptime a droite
-        sb.append(topBorder(" $username@$hostname ", " up ${s.uptimeStr} ")).append("\n")
+        sb.append(topBorder(width, " $username@$hostname ", " up ${s.uptimeStr} ")).append("\n")
 
-        // ligne heure/date a gauche, batterie a droite
         val left = "${s.clock}  ${s.date}"
-        val battIcon = if (s.charging) "⚡" else " "
-        val right = "bat ${s.batteryPct}%$battIcon ${"%.1f".format(s.batteryVoltageV)}V ${"%.0f".format(s.batteryTempC)}°"
-        sb.append(row(left, right)).append("\n")
+        val chargeTag = if (s.charging) "chg" else "bat"
+        val right = "$chargeTag ${s.batteryPct}% ${"%.1f".format(s.batteryVoltageV)}V ${"%.0f".format(s.batteryTempC)}°"
+        sb.append(row(width, left, right)).append("\n")
 
-        sb.append(midBorder()).append("\n")
+        sb.append(midBorder(width)).append("\n")
 
-        val cpuLabel = "cpu(${s.cpuSource})".padEnd(9).take(9)
-        sb.append(row("$cpuLabel${Sparkline.render(cpuHistory, GRAPH_WIDTH)}", (s.cpuPct?.toString() ?: "n/a") + "%")).append("\n")
+        val cpuLabel = "cpu(${s.cpuSource})".padEnd(LABEL_WIDTH).take(LABEL_WIDTH)
+        sb.append(row(width, "$cpuLabel${Sparkline.render(cpuHistory, graphWidth)}", (s.cpuPct?.toString() ?: "n/a") + "%")).append("\n")
 
-        val ramLabel = "ram".padEnd(9)
-        sb.append(row("$ramLabel${Sparkline.render(ramHistory, GRAPH_WIDTH)}", "${s.ramUsedPct}%")).append("\n")
+        val ramLabel = "ram".padEnd(LABEL_WIDTH)
+        sb.append(row(width, "$ramLabel${Sparkline.render(ramHistory, graphWidth)}", "${s.ramUsedPct}%")).append("\n")
 
-        sb.append(midBorder()).append("\n")
+        sb.append(midBorder(width)).append("\n")
 
-        val dskLabel = "dsk".padEnd(9)
-        val dskBar = meterBar(s.storageUsedPct, GRAPH_WIDTH)
-        sb.append(row("$dskLabel$dskBar", "${s.storageUsedPct}%")).append("\n")
+        val dskLabel = "dsk".padEnd(LABEL_WIDTH)
+        sb.append(row(width, "$dskLabel${meterBar(s.storageUsedPct, graphWidth)}", "${s.storageUsedPct}%")).append("\n")
 
-        sb.append(midBorder()).append("\n")
+        sb.append(midBorder(width)).append("\n")
 
-        val upLabel = "net ↑".padEnd(9)
-        sb.append(row("$upLabel${Sparkline.renderAutoScale(netUpHistory, GRAPH_WIDTH)}", "${s.netUpKbps}K/s")).append("\n")
-        val downLabel = "net ↓".padEnd(9)
-        sb.append(row("$downLabel${Sparkline.renderAutoScale(netDownHistory, GRAPH_WIDTH)}", "${s.netDownKbps}K/s")).append("\n")
+        // panel reseau miroir: up "suspendu du plafond" au-dessus, down
+        // "pose au sol" en dessous — comme le panel net de btop
+        val upLabel = "net ↑".padEnd(LABEL_WIDTH)
+        sb.append(row(width, "$upLabel${Sparkline.renderUpperAutoScale(netUpHistory, graphWidth)}", "${s.netUpKbps}K/s")).append("\n")
+        val downLabel = "net ↓".padEnd(LABEL_WIDTH)
+        sb.append(row(width, "$downLabel${Sparkline.renderAutoScale(netDownHistory, graphWidth)}", "${s.netDownKbps}K/s")).append("\n")
 
-        sb.append(bottomBorder())
+        sb.append(bottomBorder(width))
 
         return sb.toString()
     }
 
-    private fun topBorder(leftLabel: String, rightLabel: String): String {
+    private fun topBorder(width: Int, leftLabel: String, rightLabel: String): String {
         val used = leftLabel.length + rightLabel.length
-        val fill = (WIDTH - used - 2).coerceAtLeast(1)
+        val fill = (width - used - 2).coerceAtLeast(1)
         return "┌─$leftLabel${"─".repeat(fill)}$rightLabel─┐"
     }
 
-    private fun midBorder(): String = "├" + "─".repeat(WIDTH) + "┤"
+    private fun midBorder(width: Int): String = "├" + "─".repeat(width) + "┤"
 
-    private fun bottomBorder(): String = "└" + "─".repeat(WIDTH) + "┘"
+    private fun bottomBorder(width: Int): String = "└" + "─".repeat(width) + "┘"
 
-    private fun row(left: String, right: String): String {
+    private fun row(width: Int, left: String, right: String): String {
         val content = left.length + right.length
-        val fill = (WIDTH - content).coerceAtLeast(1)
+        val fill = (width - content).coerceAtLeast(1)
         return "│$left${" ".repeat(fill)}$right│"
     }
 

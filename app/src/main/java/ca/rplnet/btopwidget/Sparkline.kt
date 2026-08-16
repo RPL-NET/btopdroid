@@ -30,4 +30,26 @@ object Sparkline {
         val asPct = values.map { (it * 100 / max).toInt() }
         return render(asPct, width)
     }
+
+    // variante "suspendue du plafond" pour un graph miroir (up au-dessus,
+    // down en dessous, comme le panel reseau de btop). Le jeu de caracteres
+    // "upper eighth" complet n'existe pas dans le bloc Unicode standard
+    // (risque de tofu sur certaines polices Android/OEM) — on se limite donc
+    // a 3 paliers surs: ▔ (1/8 haut) ▀ (1/2 haut) █ (plein), ce qui suffit a
+    // donner un vrai effet miroir sans dependre de glyphes exotiques.
+    private val UPPER_BLOCKS = charArrayOf(' ', '▔', '▔', '▀', '▀', '▀', '█', '█', '█')
+
+    fun renderUpperAutoScale(values: List<Long>, width: Int): String {
+        if (values.isEmpty()) return " ".repeat(width)
+        val max = values.maxOrNull()?.coerceAtLeast(1) ?: 1
+        val recent = if (values.size >= width) {
+            values.takeLast(width)
+        } else {
+            List(width - values.size) { 0L } + values
+        }
+        return recent.joinToString("") { v ->
+            val pct = (v * 100 / max).toInt().coerceIn(0, 100)
+            UPPER_BLOCKS[(pct * 8) / 100].toString()
+        }
+    }
 }
