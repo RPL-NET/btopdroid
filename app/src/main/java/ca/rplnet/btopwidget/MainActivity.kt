@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.os.Bundle
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -11,12 +12,27 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 
     private lateinit var previewText: TextView
+    private lateinit var usernameInput: EditText
+    private lateinit var hostnameInput: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         previewText = findViewById(R.id.preview_text)
+        usernameInput = findViewById(R.id.input_username)
+        hostnameInput = findViewById(R.id.input_hostname)
+
+        usernameInput.setText(Prefs.getUsername(this))
+        hostnameInput.setText(Prefs.getHostname(this))
+
+        findViewById<Button>(R.id.btn_save_identity).setOnClickListener {
+            val user = usernameInput.text.toString().ifBlank { "user" }
+            val host = hostnameInput.text.toString().ifBlank { "android" }
+            Prefs.setIdentity(this, user, host)
+            refreshPreview()
+            pushWidgetUpdate()
+        }
 
         val colorContainer = findViewById<LinearLayout>(R.id.color_buttons)
         for (name in Prefs.COLOR_PRESETS.keys) {
@@ -41,8 +57,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPreview() {
         val stats = SystemStats.collect(this)
-        previewText.text = BtopRenderer.renderHeader(stats) + "\n\n" + BtopRenderer.renderFooter(stats) +
-            "\n\n(les graphs ram/cpu/bat s'affichent directement sur le widget)"
+        val header = BtopRenderer.renderHeader(stats, Prefs.getUsername(this), Prefs.getHostname(this))
+        val footer = BtopRenderer.renderFooter(stats)
+        previewText.text = "$header\n\n$footer\ncpu: ${stats.cpuPct?.toString() ?: "n/a"} (source: ${stats.cpuSource})" +
+            "\n\n(les graphs ram/cpu et meters bat/dsk s'affichent sur le widget)"
         previewText.setTextColor(Prefs.getFgColor(this))
         previewText.setBackgroundColor(Prefs.getBgColor(this))
     }

@@ -39,6 +39,40 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:text="Identité (user@hostname)"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingTop="20dp"
+            android:paddingBottom="8dp" />
+
+        <EditText
+            android:id="@+id/input_username"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="user"
+            android:textColorHint="#666666"
+            android:textColor="#FFFFFF"
+            android:fontFamily="monospace" />
+
+        <EditText
+            android:id="@+id/input_hostname"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="hostname"
+            android:textColorHint="#666666"
+            android:textColor="#FFFFFF"
+            android:fontFamily="monospace" />
+
+        <Button
+            android:id="@+id/btn_save_identity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Appliquer" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="Couleurs"
             android:textColor="#FFFFFF"
             android:textSize="16sp"

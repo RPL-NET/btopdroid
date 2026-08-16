@@ -17,14 +17,16 @@ class BtopWidgetProvider : AppWidgetProvider() {
         // un ratio raisonnable et une taille lisible.
         private const val GRAPH_W = 480
         private const val GRAPH_H = 90
+        private const val METER_H = 60
 
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
             val stats = SystemStats.collect(context)
             val fg = Prefs.getFgColor(context)
             val bg = Prefs.getBgColor(context)
+            val username = Prefs.getUsername(context)
+            val hostname = Prefs.getHostname(context)
 
             val ramHistory = HistoryStore.push(context, "ram", stats.ramUsedPct)
-            val batHistory = HistoryStore.push(context, "bat", stats.batteryPct)
             val cpuHistory = if (stats.cpuPct != null) {
                 HistoryStore.push(context, "cpu", stats.cpuPct)
             } else {
@@ -32,23 +34,36 @@ class BtopWidgetProvider : AppWidgetProvider() {
             }
 
             val views = RemoteViews(context.packageName, R.layout.widget_btop)
-            views.setTextViewText(R.id.widget_header, BtopRenderer.renderHeader(stats))
+            views.setTextViewText(R.id.widget_header, BtopRenderer.renderHeader(stats, username, hostname))
             views.setTextViewText(R.id.widget_footer, BtopRenderer.renderFooter(stats))
             views.setTextColor(R.id.widget_header, fg)
             views.setTextColor(R.id.widget_footer, fg)
             views.setInt(R.id.widget_root, "setBackgroundColor", bg)
 
+            val cpuLabel = "cpu(${stats.cpuSource})"
             views.setImageViewBitmap(
                 R.id.graph_ram,
                 GraphRenderer.render(ramHistory, stats.ramUsedPct, "ram", fg, bg, GRAPH_W, GRAPH_H)
             )
             views.setImageViewBitmap(
                 R.id.graph_cpu,
-                GraphRenderer.render(cpuHistory, stats.cpuPct ?: -1, "cpu", fg, bg, GRAPH_W, GRAPH_H)
+                GraphRenderer.render(cpuHistory, stats.cpuPct ?: -1, cpuLabel, fg, bg, GRAPH_W, GRAPH_H)
             )
             views.setImageViewBitmap(
-                R.id.graph_bat,
-                GraphRenderer.render(batHistory, stats.batteryPct, "bat", fg, bg, GRAPH_W, GRAPH_H)
+                R.id.meter_bat,
+                GraphRenderer.renderMeter(
+                    stats.batteryPct, "bat",
+                    "%.2fV  %.1f°C%s".format(stats.batteryVoltageV, stats.batteryTempC, if (stats.charging) "  ⚡" else ""),
+                    fg, bg, GRAPH_W, METER_H
+                )
+            )
+            views.setImageViewBitmap(
+                R.id.meter_disk,
+                GraphRenderer.renderMeter(
+                    stats.storageUsedPct, "dsk",
+                    "%.1fG / %.1fG".format(stats.storageUsedGb, stats.storageTotalGb),
+                    fg, bg, GRAPH_W, METER_H
+                )
             )
 
             // tap sur le widget = refresh immediat (bypass le throttling

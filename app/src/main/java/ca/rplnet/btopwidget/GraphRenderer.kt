@@ -93,4 +93,61 @@ object GraphRenderer {
 
         return bmp
     }
+
+    // meter horizontal simple (pas de courbe dans le temps) — pour batterie
+    // et stockage, ou une valeur instantanee a plus de sens qu'un historique
+    fun renderMeter(
+        pct: Int,
+        label: String,
+        subtitle: String,
+        fgColor: Int,
+        bgColor: Int,
+        widthPx: Int,
+        heightPx: Int
+    ): Bitmap {
+        val bmp = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        canvas.drawColor(bgColor)
+
+        val padding = 4f
+        val textPaint = Paint().apply {
+            color = fgColor
+            textSize = 18f
+            isAntiAlias = true
+            typeface = android.graphics.Typeface.MONOSPACE
+        }
+        canvas.drawText("$label ${pct.coerceIn(0, 100)}%", padding, 16f, textPaint)
+
+        val barTop = 22f
+        val barBottom = heightPx - 20f
+        val barLeft = padding
+        val barRight = widthPx - padding
+
+        val outlinePaint = Paint().apply {
+            color = fgColor
+            alpha = 90
+            style = Paint.Style.STROKE
+            strokeWidth = 2f
+        }
+        canvas.drawRect(barLeft, barTop, barRight, barBottom, outlinePaint)
+
+        val fillWidth = (barRight - barLeft) * (pct.coerceIn(0, 100) / 100f)
+        val fillPaint = Paint().apply {
+            color = fgColor
+            alpha = 160
+            style = Paint.Style.FILL
+        }
+        canvas.drawRect(barLeft, barTop, barLeft + fillWidth, barBottom, fillPaint)
+
+        val subPaint = Paint().apply {
+            color = fgColor
+            alpha = 200
+            textSize = 15f
+            isAntiAlias = true
+            typeface = android.graphics.Typeface.MONOSPACE
+        }
+        canvas.drawText(subtitle, padding, heightPx - 4f, subPaint)
+
+        return bmp
+    }
 }

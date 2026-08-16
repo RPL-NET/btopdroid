@@ -19,11 +19,14 @@ data class Stats(
     val ramUsedMb: Long,
     val ramTotalMb: Long,
     val batteryPct: Int,
+    val batteryVoltageV: Double,
+    val batteryTempC: Double,
     val charging: Boolean,
     val storageUsedPct: Int,
     val storageUsedGb: Double,
     val storageTotalGb: Double,
     val cpuPct: Int?,
+    val cpuSource: String,
     val uptimeStr: String,
     val netDownKbps: Long,
     val netUpKbps: Long,
@@ -59,6 +62,10 @@ object SystemStats {
         val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
         val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                 status == BatteryManager.BATTERY_STATUS_FULL
+        val voltageMv = batteryIntent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1) ?: -1
+        val batteryVoltageV = if (voltageMv > 0) voltageMv / 1000.0 else 0.0
+        val tempTenths = batteryIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1) ?: -1
+        val batteryTempC = if (tempTenths > 0) tempTenths / 10.0 else 0.0
 
         val statFs = StatFs(Environment.getDataDirectory().path)
         val totalBytes = statFs.blockCountLong * statFs.blockSizeLong
@@ -68,7 +75,7 @@ object SystemStats {
         val storageUsedGb = usedBytes / (1024.0 * 1024.0 * 1024.0)
         val storageUsedPct = if (totalBytes > 0) (usedBytes * 100 / totalBytes).toInt() else 0
 
-        val cpuPct = readCpuPercent()
+        val (cpuPct, cpuSource) = readCpuPercent()
 
         val uptimeMs = SystemClock.elapsedRealtime()
         val uptimeStr = formatUptime(uptimeMs)
@@ -84,11 +91,14 @@ object SystemStats {
             ramUsedMb = ramUsedMb,
             ramTotalMb = ramTotalMb,
             batteryPct = batteryPct,
+            batteryVoltageV = batteryVoltageV,
+            batteryTempC = batteryTempC,
             charging = charging,
             storageUsedPct = storageUsedPct,
             storageUsedGb = storageUsedGb,
             storageTotalGb = storageTotalGb,
             cpuPct = cpuPct,
+            cpuSource = cpuSource,
             uptimeStr = uptimeStr,
             netDownKbps = downKbps,
             netUpKbps = upKbps,
@@ -102,9 +112,10 @@ object SystemStats {
     // /proc/loadavg — la meme technique que KWGT et la plupart des apps de
     // monitoring non-root, car /proc/loadavg reste generalement lisible meme
     // quand /proc/stat est bloque.
-    private fun readCpuPercent(): Int? {
-        readCpuStat()?.let { return it }
-        return readLoadAvg()
+    private fun readCpuPercent(): Pair<Int?, String> {
+        readCpuStat()?.let { return Pair(it, "stat") }
+        readLoadAvg()?.let { return Pair(it, "loadavg") }
+        return Pair(null, "bloqué")
     }
 
     private fun readCpuStat(): Int? {

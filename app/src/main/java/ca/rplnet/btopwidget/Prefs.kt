@@ -6,6 +6,8 @@ object Prefs {
     private const val PREFS_NAME = "btopdroid_prefs"
     private const val KEY_FG_COLOR = "fg_color"
     private const val KEY_BG_COLOR = "bg_color"
+    private const val KEY_USERNAME = "username"
+    private const val KEY_HOSTNAME = "hostname"
 
     // presets couleur: nom -> (foreground, background)
     val COLOR_PRESETS = linkedMapOf(
@@ -27,6 +29,19 @@ object Prefs {
         prefs(context).edit()
             .putInt(KEY_FG_COLOR, pair.first)
             .putInt(KEY_BG_COLOR, pair.second)
+            .apply()
+    }
+
+    fun getUsername(context: Context): String =
+        prefs(context).getString(KEY_USERNAME, "user") ?: "user"
+
+    fun getHostname(context: Context): String =
+        prefs(context).getString(KEY_HOSTNAME, android.os.Build.MODEL.lowercase().replace(" ", "-")) ?: "android"
+
+    fun setIdentity(context: Context, username: String, hostname: String) {
+        prefs(context).edit()
+            .putString(KEY_USERNAME, username)
+            .putString(KEY_HOSTNAME, hostname)
             .apply()
     }
 
