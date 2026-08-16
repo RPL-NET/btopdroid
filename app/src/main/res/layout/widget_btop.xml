@@ -5,57 +5,16 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="#000000"
-    android:padding="8dp">
+    android:padding="6dp">
 
     <TextView
-        android:id="@+id/widget_header"
+        android:id="@+id/widget_text"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:fontFamily="monospace"
         android:textColor="#33FF33"
-        android:textSize="11sp"
+        android:textSize="10sp"
+        android:includeFontPadding="false"
         android:text="btopdroid\ninit…" />
-
-    <ImageView
-        android:id="@+id/graph_ram"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="4dp"
-        android:scaleType="fitXY" />
-
-    <ImageView
-        android:id="@+id/graph_cpu"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="4dp"
-        android:scaleType="fitXY" />
-
-    <ImageView
-        android:id="@+id/meter_bat"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="4dp"
-        android:scaleType="fitXY" />
-
-    <ImageView
-        android:id="@+id/meter_disk"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="4dp"
-        android:scaleType="fitXY" />
-
-    <TextView
-        android:id="@+id/widget_footer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:fontFamily="monospace"
-        android:textColor="#33FF33"
-        android:textSize="11sp"
-        android:text="" />
 
 </LinearLayout>

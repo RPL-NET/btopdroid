@@ -18,6 +18,24 @@ object HistoryStore {
         return current
     }
 
+    // sans clamp 0-100 — pour des valeurs comme les KB/s reseau qui n'ont pas
+    // de plafond naturel (normalisees plus tard par Sparkline.renderAutoScale)
+    fun pushRaw(context: Context, key: String, value: Long): List<Long> {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val current = getRaw(context, key).toMutableList()
+        current.add(value)
+        while (current.size > MAX_POINTS) current.removeAt(0)
+        prefs.edit().putString(key, current.joinToString(",")).apply()
+        return current
+    }
+
+    fun getRaw(context: Context, key: String): List<Long> {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(key, "") ?: ""
+        if (raw.isBlank()) return emptyList()
+        return raw.split(",").mapNotNull { it.trim().toLongOrNull() }
+    }
+
     fun get(context: Context, key: String): List<Int> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val raw = prefs.getString(key, "") ?: ""
