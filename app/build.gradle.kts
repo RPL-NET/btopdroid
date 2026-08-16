@@ -11,8 +11,8 @@ android {
         applicationId = "ca.rplnet.btopwidget"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     buildTypes {
@@ -28,6 +28,17 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    // renomme l'APK de sortie pour inclure la version et le build type,
+    // au lieu du generique "app-debug.apk" par defaut
+    applicationVariants.all {
+        val variant = this
+        variant.outputs
+            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
+            .forEach { output ->
+                output.outputFileName = "btopdroid-${variant.versionName}-${variant.buildType.name}.apk"
+            }
     }
 }
 
