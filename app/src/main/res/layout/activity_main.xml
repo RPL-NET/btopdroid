@@ -52,21 +52,5 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Style des barres"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingTop="20dp"
-            android:paddingBottom="8dp" />
-
-        <LinearLayout
-            android:id="@+id/style_buttons"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
     </LinearLayout>
 </ScrollView>

@@ -31,20 +31,6 @@ class MainActivity : AppCompatActivity() {
             colorContainer.addView(btn)
         }
 
-        val styleContainer = findViewById<LinearLayout>(R.id.style_buttons)
-        for (name in Prefs.BAR_STYLES.keys) {
-            val (filled, empty) = Prefs.BAR_STYLES.getValue(name)
-            val btn = Button(this).apply {
-                text = "$name  (${filled.repeat(4)}${empty.repeat(4)})"
-                setOnClickListener {
-                    Prefs.setBarStyle(this@MainActivity, name)
-                    refreshPreview()
-                    pushWidgetUpdate()
-                }
-            }
-            styleContainer.addView(btn)
-        }
-
         refreshPreview()
     }
 
@@ -55,8 +41,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPreview() {
         val stats = SystemStats.collect(this)
-        val (filled, empty) = Prefs.getBarStyle(this)
-        previewText.text = BtopRenderer.render(stats, filled, empty)
+        previewText.text = BtopRenderer.renderHeader(stats) + "\n\n" + BtopRenderer.renderFooter(stats) +
+            "\n\n(les graphs ram/cpu/bat s'affichent directement sur le widget)"
         previewText.setTextColor(Prefs.getFgColor(this))
         previewText.setBackgroundColor(Prefs.getBgColor(this))
     }

@@ -98,9 +98,16 @@ object SystemStats {
     }
 
     // /proc/stat est bloqué (permission denied) sur beaucoup de devices depuis
-    // Android 8+ (SELinux hidepid). On tente quand même — si ça echoue, on
-    // retourne null et le widget affiche "n/a" plutot que de crasher.
+    // Android 8+ (SELinux). On tente quand même, et si ça echoue on tombe sur
+    // /proc/loadavg — la meme technique que KWGT et la plupart des apps de
+    // monitoring non-root, car /proc/loadavg reste generalement lisible meme
+    // quand /proc/stat est bloque.
     private fun readCpuPercent(): Int? {
+        readCpuStat()?.let { return it }
+        return readLoadAvg()
+    }
+
+    private fun readCpuStat(): Int? {
         return try {
             val reader = RandomAccessFile("/proc/stat", "r")
             val load = reader.readLine()
@@ -131,7 +138,23 @@ object SystemStats {
             if (totalDelta <= 0) return null
             (100 * (totalDelta - idleDelta) / totalDelta).toInt()
         } catch (e: Exception) {
-            null // pas accessible sur ce device (normal, pas une erreur a signaler)
+            null // /proc/stat bloque sur ce device, pas une erreur a signaler
+        }
+    }
+
+    // charge systeme (1min) normalisee par le nombre de coeurs, faute de mieux.
+    // Pas un vrai % d'utilisation instantane comme /proc/stat, mais un proxy
+    // raisonnable — c'est ce que la plupart des widgets non-root affichent.
+    private fun readLoadAvg(): Int? {
+        return try {
+            val reader = RandomAccessFile("/proc/loadavg", "r")
+            val line = reader.readLine()
+            reader.close()
+            val load1min = line.split(" ")[0].toFloat()
+            val cores = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+            ((load1min / cores) * 100).toInt().coerceIn(0, 100)
+        } catch (e: Exception) {
+            null // vraiment bloque sur ce device, la on affiche n/a honnetement
         }
     }
 
