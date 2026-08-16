@@ -6,7 +6,18 @@
     <application
         android:label="btopdroid"
         android:icon="@mipmap/ic_launcher"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:theme="@style/Theme.Btopdroid">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="btopdroid">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
         <receiver
             android:name=".BtopWidgetProvider"

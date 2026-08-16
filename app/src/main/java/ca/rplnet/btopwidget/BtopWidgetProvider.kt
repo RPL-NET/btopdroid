@@ -14,10 +14,13 @@ class BtopWidgetProvider : AppWidgetProvider() {
 
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
             val stats = SystemStats.collect(context)
-            val text = BtopRenderer.render(stats)
+            val (filledChar, emptyChar) = Prefs.getBarStyle(context)
+            val text = BtopRenderer.render(stats, filledChar, emptyChar)
 
             val views = RemoteViews(context.packageName, R.layout.widget_btop)
             views.setTextViewText(R.id.widget_text, text)
+            views.setTextColor(R.id.widget_text, Prefs.getFgColor(context))
+            views.setInt(R.id.widget_root, "setBackgroundColor", Prefs.getBgColor(context))
 
             // tap sur le widget = refresh immediat (bypass le throttling
             // de updatePeriodMillis, minimum 30min impose par Android)
