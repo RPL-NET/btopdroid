@@ -115,7 +115,33 @@ object SystemStats {
     private fun readCpuPercent(): Pair<Int?, String> {
         readCpuStat()?.let { return Pair(it, "stat") }
         readLoadAvg()?.let { return Pair(it, "loadavg") }
+        readCpuTop()?.let { return Pair(it, "top") }
         return Pair(null, "bloqué")
+    }
+
+    // /proc/stat direct est bloque par SELinux sur pas mal de devices (Motorola
+    // inclus), mais le binaire "top" lui passe par un chemin different et reste
+    // lisible meme sans root — meme technique que Kustom (KWGT) utilise.
+    private fun readCpuTop(): Int? {
+        return try {
+            val process = ProcessBuilder("top", "-bn1").redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+
+            // cherche une ligne du genre "800%cpu  0%user  0%nice  0%sys  800%idle ..."
+            val regex = Regex("""(\d+)%idle""")
+            val match = regex.find(output) ?: return null
+            val idlePct = match.groupValues[1].toInt()
+
+            val cpuLineRegex = Regex("""(\d+)%cpu""")
+            val totalMatch = cpuLineRegex.find(output) ?: return null
+            val totalPct = totalMatch.groupValues[1].toInt()
+
+            if (totalPct <= 0) return null
+            (100 - (idlePct * 100 / totalPct)).coerceIn(0, 100)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun readCpuStat(): Int? {
