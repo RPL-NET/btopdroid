@@ -119,8 +119,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPreview() {
         val stats = SystemStats.collect(this)
-        val text = BtopRenderer.render(this, stats, Prefs.getUsername(this), Prefs.getHostname(this), Prefs.getFgColor(this))
-        previewText.text = text
+        val header = BtopRenderer.renderHeader(stats, Prefs.getUsername(this), Prefs.getHostname(this))
+        previewText.text = "$header\n\ncpu: ${stats.cpuPct?.toString() ?: "n/a"} (source: ${stats.cpuSource})" +
+            "\n\n(les graphs ram/cpu/dsk/net sont dessines directement sur le widget, pas dans ce preview)"
         previewText.setTextColor(Prefs.getFgColor(this))
         previewText.setBackgroundColor(Prefs.getBgColor(this))
     }

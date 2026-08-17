@@ -34,6 +34,10 @@ class TermuxWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onEnabled(context: Context) {
+        AppWidgetManager.getInstance(context).updateAppWidgetProviderInfo(
+            android.content.ComponentName(context, TermuxWidgetProvider::class.java),
+            null
+        )
         RefreshWorker.schedule(context)
     }
 
