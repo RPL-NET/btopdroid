@@ -11,8 +11,8 @@ android {
         applicationId = "ca.rplnet.btopwidget"
         minSdk = 26
         targetSdk = 34
-        versionCode = 23
-        versionName = "0.16.0"
+        versionCode = 24
+        versionName = "0.17.0"
     }
 
     buildTypes {

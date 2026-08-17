@@ -137,6 +137,44 @@ object GraphBitmapRenderer {
         return path
     }
 
+    // vrai style btop: chaque point d'historique est une ligne verticale
+    // avec un degrade de couleur (fonce a la base, couleur pleine en haut)
+    // — pas une courbe/aire lissee. C'est litteralement ce que fait btop
+    // avec ses colonnes de caracteres braille en mode "high color".
+    private fun drawGradientColumns(
+        canvas: Canvas,
+        values: List<Float>,
+        left: Float,
+        right: Float,
+        baselineY: Float,
+        farY: Float, // extremite max possible (haut si ca grandit vers le haut, bas si vers le bas)
+        accentColor: Int
+    ) {
+        if (values.isEmpty()) return
+        val n = values.size
+        val totalWidth = right - left
+        val colSlot = totalWidth / n
+        val colWidth = (colSlot * 0.75f).coerceAtLeast(1.5f)
+
+        val dim = (0x33 shl 24) or (accentColor and 0x00FFFFFF) // meme teinte, tres sombre a la base
+        val bright = (0xFF shl 24) or (accentColor and 0x00FFFFFF)
+        val range = farY - baselineY // negatif si ca grandit vers le haut
+
+        val colPaint = Paint().apply { isAntiAlias = false }
+        values.forEachIndexed { i, v ->
+            val x = left + i * colSlot + (colSlot - colWidth) / 2f
+            val tipY = baselineY + v * range
+            if (kotlin.math.abs(baselineY - tipY) < 1f) return@forEachIndexed
+
+            colPaint.shader = android.graphics.LinearGradient(
+                x, baselineY, x, tipY, dim, bright, android.graphics.Shader.TileMode.CLAMP
+            )
+            val top = minOf(baselineY, tipY)
+            val bottom = maxOf(baselineY, tipY)
+            canvas.drawRect(x, top, x + colWidth, bottom, colPaint)
+        }
+    }
+
     // graph auto-scale sur le min/max observe dans la fenetre (pas 0-100 fixe)
     // pour que des metriques stables comme la RAM produisent quand meme une
     // courbe visible plutot qu'une ligne plate ecrasee dans le bas de l'echelle
@@ -170,28 +208,8 @@ object GraphBitmapRenderer {
         canvas.drawLine(inner.left, inner.top, inner.right, inner.top, gridPaint)
         canvas.drawLine(inner.left, inner.bottom, inner.right, inner.bottom, gridPaint)
 
-        val graphHeight = (inner.bottom - inner.top).coerceAtLeast(1f)
         val norm = normalize(history)
-        if (norm.size >= 2) {
-            val stepX = (inner.right - inner.left) / (norm.size - 1)
-            val points = norm.mapIndexed { i, v ->
-                Pair(inner.left + stepX * i, inner.bottom - v * graphHeight)
-            }
-            val line = smoothPath(points)
-
-            val fill = Path(line)
-            fill.lineTo(inner.right, inner.bottom)
-            fill.lineTo(inner.left, inner.bottom)
-            fill.close()
-
-            fillPaint.color = accent
-            fillPaint.alpha = 70
-            canvas.drawPath(fill, fillPaint)
-
-            linePaint.color = accent
-            linePaint.alpha = 255
-            canvas.drawPath(line, linePaint)
-        }
+        drawGradientColumns(canvas, norm, inner.left, inner.right, inner.bottom, inner.top, accent)
 
         drawScanlines(canvas, widthPx, heightPx)
 
@@ -225,17 +243,29 @@ object GraphBitmapRenderer {
 
         val barRect = RectF(barLeft, barTop, barRight, barBottom.coerceAtLeast(barTop + 4f))
 
-        val outline = Paint().apply {
-            color = fgColor; alpha = 90; style = Paint.Style.STROKE; strokeWidth = 2f; isAntiAlias = true
-        }
-        canvas.drawRoundRect(barRect, barRadius, barRadius, outline)
+        // meter en blocs segmentes, genre VU-metre/LED — pas une barre pleine
+        val segCount = ((barRect.width() / 14f).toInt()).coerceIn(8, 30)
+        val segGap = 2f
+        val segWidth = (barRect.width() - segGap * (segCount - 1)) / segCount
+        val litSegments = (clamped * segCount / 100f).toInt()
 
-        val fillWidth = (barRect.right - barRect.left) * (clamped / 100f)
-        if (fillWidth > 1f) {
-            val fillRect = RectF(barRect.left, barRect.top, barRect.left + fillWidth, barRect.bottom)
-            fillPaint.color = accent
-            fillPaint.alpha = 190
-            canvas.drawRoundRect(fillRect, barRadius, barRadius, fillPaint)
+        val litPaint = Paint().apply { style = Paint.Style.FILL; isAntiAlias = false }
+        val unlitOutline = Paint().apply {
+            color = fgColor; alpha = 60; style = Paint.Style.STROKE; strokeWidth = 1.5f; isAntiAlias = false
+        }
+
+        for (i in 0 until segCount) {
+            val segLeft = barRect.left + i * (segWidth + segGap)
+            val segRect = RectF(segLeft, barRect.top, segLeft + segWidth, barRect.bottom)
+            if (i < litSegments) {
+                // degrade dim->accent le long des segments allumes, meme esprit que les graphs
+                val t = if (segCount > 1) i.toFloat() / (segCount - 1) else 1f
+                val dimmed = (((0x55 + (0xAA * t)).toInt().coerceIn(0, 255)) shl 24) or (accent and 0x00FFFFFF)
+                litPaint.color = dimmed
+                canvas.drawRect(segRect, litPaint)
+            } else {
+                canvas.drawRect(segRect, unlitOutline)
+            }
         }
 
         val subPaint = Paint().apply {
@@ -275,8 +305,6 @@ object GraphBitmapRenderer {
         )
 
         val centerY = (inner.top + inner.bottom) / 2f
-        val halfHeight = (centerY - inner.top).coerceAtLeast(1f)
-
         gridPaint.color = fgColor
         gridPaint.alpha = 40
         canvas.drawLine(inner.left, centerY, inner.right, centerY, gridPaint)
@@ -287,27 +315,10 @@ object GraphBitmapRenderer {
         val downAccent = thresholdColor(fgColor, ((downKbps.toFloat() / maxDown) * 100).toInt())
 
         fun drawSide(values: List<Long>, max: Long, goingUp: Boolean, accent: Int) {
-            if (values.size < 2) return
-            val stepX = (inner.right - inner.left) / (values.size - 1)
-            val points = values.mapIndexed { i, v ->
-                val frac = (v.toFloat() / max).coerceIn(0f, 1f)
-                val y = if (goingUp) centerY - frac * halfHeight else centerY + frac * halfHeight
-                Pair(inner.left + stepX * i, y)
-            }
-            val line = smoothPath(points)
-
-            val fill = Path(line)
-            fill.lineTo(inner.right, centerY)
-            fill.lineTo(inner.left, centerY)
-            fill.close()
-
-            fillPaint.color = accent
-            fillPaint.alpha = 65
-            canvas.drawPath(fill, fillPaint)
-
-            linePaint.color = accent
-            linePaint.alpha = 255
-            canvas.drawPath(line, linePaint)
+            if (values.isEmpty()) return
+            val fracs = values.map { (it.toFloat() / max).coerceIn(0f, 1f) }
+            val farY = if (goingUp) inner.top else inner.bottom
+            drawGradientColumns(canvas, fracs, inner.left, inner.right, centerY, farY, accent)
         }
 
         drawSide(upHistory, maxUp, goingUp = true, upAccent)
