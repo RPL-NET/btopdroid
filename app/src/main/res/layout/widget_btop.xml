@@ -13,7 +13,11 @@
         android:layout_height="match_parent"
         android:fontFamily="monospace"
         android:textColor="#33FF33"
-        android:textSize="10sp"
+        android:maxLines="12"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="4sp"
+        android:autoSizeMaxTextSize="14sp"
+        android:autoSizeStepGranularity="1sp"
         android:includeFontPadding="false"
         android:text="btopdroid\ninit…" />
 
