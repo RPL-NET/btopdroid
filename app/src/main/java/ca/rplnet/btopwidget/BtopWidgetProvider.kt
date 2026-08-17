@@ -22,7 +22,7 @@ class BtopWidgetProvider : AppWidgetProvider() {
             // dans le layout qui ajuste la taille de police pour que ca rentre
             // peu importe la vraie taille du widget, plus fiable que d'essayer
             // de deviner les dp reels (fragile d'un launcher OEM a l'autre)
-            val text = BtopRenderer.render(context, stats, username, hostname, 44)
+            val text = BtopRenderer.render(context, stats, username, hostname, fg)
 
             val views = RemoteViews(context.packageName, R.layout.widget_btop)
             views.setTextViewText(R.id.widget_text, text)

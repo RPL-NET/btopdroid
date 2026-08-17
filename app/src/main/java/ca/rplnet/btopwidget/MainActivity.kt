@@ -57,7 +57,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPreview() {
         val stats = SystemStats.collect(this)
-        val text = BtopRenderer.render(this, stats, Prefs.getUsername(this), Prefs.getHostname(this), 40)
+        val text = BtopRenderer.render(this, stats, Prefs.getUsername(this), Prefs.getHostname(this), Prefs.getFgColor(this))
         previewText.text = text
         previewText.setTextColor(Prefs.getFgColor(this))
         previewText.setBackgroundColor(Prefs.getBgColor(this))
