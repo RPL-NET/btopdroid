@@ -9,6 +9,14 @@ object Prefs {
     private const val KEY_USERNAME = "username"
     private const val KEY_HOSTNAME = "hostname"
     private const val KEY_LIVE_UPDATE = "live_update_enabled"
+    private const val KEY_TERMUX_FOLDER = "termux_folder_name"
+
+    fun getTermuxFolderName(context: Context): String =
+        prefs(context).getString(KEY_TERMUX_FOLDER, "btopdroid") ?: "btopdroid"
+
+    fun setTermuxFolderName(context: Context, name: String) {
+        prefs(context).edit().putString(KEY_TERMUX_FOLDER, name).apply()
+    }
 
     fun isLiveUpdateEnabled(context: Context): Boolean =
         prefs(context).getBoolean(KEY_LIVE_UPDATE, false)

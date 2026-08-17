@@ -73,9 +73,43 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Setup Termux requis (une fois): mkdir -p ~/storage/shared/btopdroid, puis wrap la session avec 'script' dans .bashrc — voir README. Ensuite choisis ce dossier ici."
+            android:text="Nom du dossier partagé (existant ou à créer):"
             android:textColor="#AAAAAA"
             android:textSize="12sp"
+            android:paddingBottom="4dp" />
+
+        <EditText
+            android:id="@+id/input_folder_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="btopdroid"
+            android:textColorHint="#666666"
+            android:textColor="#FFFFFF"
+            android:fontFamily="monospace" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Étape 1 — colle cette commande une fois dans Termux (le bouton la copie avec ton nom de dossier), puis ferme et rouvre Termux:"
+            android:textColor="#AAAAAA"
+            android:textSize="12sp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp" />
+
+        <Button
+            android:id="@+id/btn_copy_termux_cmd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Copier la commande Termux" />
+
+        <TextView
+            android:id="@+id/label_step2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Étape 2 — choisis ce même dossier dans le sélecteur:"
+            android:textColor="#AAAAAA"
+            android:textSize="12sp"
+            android:paddingTop="12dp"
             android:paddingBottom="8dp" />
 
         <Button

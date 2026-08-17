@@ -1,13 +1,17 @@
 package ca.rplnet.btopwidget
 
 import android.appwidget.AppWidgetManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 
@@ -39,6 +43,29 @@ class MainActivity : AppCompatActivity() {
 
         usernameInput.setText(Prefs.getUsername(this))
         hostnameInput.setText(Prefs.getHostname(this))
+
+        val folderInput = findViewById<EditText>(R.id.input_folder_name)
+        val step2Label = findViewById<TextView>(R.id.label_step2)
+        folderInput.setText(Prefs.getTermuxFolderName(this))
+        fun currentFolderName() = folderInput.text.toString().ifBlank { "btopdroid" }
+        fun updateStep2Label() {
+            step2Label.text = "Étape 2 — choisis le dossier \"${currentFolderName()}\" dans le sélecteur:"
+        }
+        updateStep2Label()
+        folderInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                Prefs.setTermuxFolderName(this@MainActivity, currentFolderName())
+                updateStep2Label()
+            }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+
+        findViewById<Button>(R.id.btn_copy_termux_cmd).setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("btopdroid setup", TermuxSetup.command(currentFolderName())))
+            Toast.makeText(this, "Commande copiée — colle-la dans Termux", Toast.LENGTH_LONG).show()
+        }
 
         findViewById<Button>(R.id.btn_pick_termux_folder).setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
