@@ -3,6 +3,7 @@ package ca.rplnet.btopwidget
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Typeface
 
 // Rendu Canvas->Bitmap, injecte dans le widget via ImageView.setImageViewBitmap().
@@ -18,6 +19,32 @@ object GraphBitmapRenderer {
     }
     private val gridPaint = Paint().apply { strokeWidth = 1f }
     private val fillPaint = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
+    private val linePaint = Paint().apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+        isAntiAlias = true
+        strokeJoin = Paint.Join.ROUND
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    // courbe lissee entre les points (au lieu d'une ligne brisee point-a-point)
+    // via des points de controle a mi-chemin, technique classique pour un
+    // rendu "fluide" sans dependre d'aucune police/glyphe
+    private fun smoothPath(points: List<Pair<Float, Float>>): Path {
+        val path = Path()
+        if (points.isEmpty()) return path
+        path.moveTo(points[0].first, points[0].second)
+        for (i in 0 until points.size - 1) {
+            val (x0, y0) = points[i]
+            val (x1, y1) = points[i + 1]
+            val midX = (x0 + x1) / 2f
+            val midY = (y0 + y1) / 2f
+            path.quadTo(x0, y0, midX, midY)
+        }
+        val last = points.last()
+        path.lineTo(last.first, last.second)
+        return path
+    }
 
     // graph auto-scale sur le min/max observe dans la fenetre (pas 0-100 fixe)
     // pour que des metriques stables comme la RAM produisent quand meme une
@@ -62,24 +89,25 @@ object GraphBitmapRenderer {
         canvas.drawLine(graphLeft, graphBottom, graphRight, graphBottom, gridPaint)
 
         val norm = normalize(history)
-        if (norm.isNotEmpty()) {
-            val n = norm.size
-            val totalWidth = graphRight - graphLeft
-            val barSlot = totalWidth / n
-            val barWidth = (barSlot * 0.7f).coerceAtLeast(1f)
-            val gap = barSlot - barWidth
-
-            norm.forEachIndexed { i, v ->
-                val barHeight = v * graphHeight
-                val left = graphLeft + i * barSlot + gap / 2f
-                val top = graphBottom - barHeight
-                val right = left + barWidth
-
-                // degrade fonce->pale par barre selon l'intensite, comme btop
-                fillPaint.color = fgColor
-                fillPaint.alpha = 90 + (v * 165).toInt().coerceIn(0, 165)
-                canvas.drawRect(left, top, right, graphBottom, fillPaint)
+        if (norm.size >= 2) {
+            val stepX = (graphRight - graphLeft) / (norm.size - 1)
+            val points = norm.mapIndexed { i, v ->
+                Pair(graphLeft + stepX * i, graphBottom - v * graphHeight)
             }
+            val line = smoothPath(points)
+
+            val fill = Path(line)
+            fill.lineTo(graphRight, graphBottom)
+            fill.lineTo(graphLeft, graphBottom)
+            fill.close()
+
+            fillPaint.color = fgColor
+            fillPaint.alpha = 65
+            canvas.drawPath(fill, fillPaint)
+
+            linePaint.color = fgColor
+            linePaint.alpha = 255
+            canvas.drawPath(line, linePaint)
         }
 
         return bmp
@@ -164,29 +192,28 @@ object GraphBitmapRenderer {
         val maxUp = (upHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
         val maxDown = (downHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
 
-        // mini-carres comme le reste des graphs, pas une courbe lisse
         fun drawSide(values: List<Long>, max: Long, goingUp: Boolean) {
-            if (values.isEmpty()) return
-            val n = values.size
-            val totalWidth = graphRight - graphLeft
-            val barSlot = totalWidth / n
-            val barWidth = (barSlot * 0.7f).coerceAtLeast(1f)
-            val gap = barSlot - barWidth
-
-            values.forEachIndexed { i, v ->
+            if (values.size < 2) return
+            val stepX = (graphRight - graphLeft) / (values.size - 1)
+            val points = values.mapIndexed { i, v ->
                 val frac = (v.toFloat() / max).coerceIn(0f, 1f)
-                val barHeight = frac * halfHeight
-                val left = graphLeft + i * barSlot + gap / 2f
-                val right = left + barWidth
-                val top: Float
-                val bottom: Float
-                if (goingUp) { top = centerY - barHeight; bottom = centerY }
-                else { top = centerY; bottom = centerY + barHeight }
-
-                fillPaint.color = fgColor
-                fillPaint.alpha = 90 + (frac * 165).toInt().coerceIn(0, 165)
-                canvas.drawRect(left, top, right, bottom, fillPaint)
+                val y = if (goingUp) centerY - frac * halfHeight else centerY + frac * halfHeight
+                Pair(graphLeft + stepX * i, y)
             }
+            val line = smoothPath(points)
+
+            val fill = Path(line)
+            fill.lineTo(graphRight, centerY)
+            fill.lineTo(graphLeft, centerY)
+            fill.close()
+
+            fillPaint.color = fgColor
+            fillPaint.alpha = 65
+            canvas.drawPath(fill, fillPaint)
+
+            linePaint.color = fgColor
+            linePaint.alpha = 255
+            canvas.drawPath(line, linePaint)
         }
 
         drawSide(upHistory, maxUp, goingUp = true)
