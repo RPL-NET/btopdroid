@@ -16,11 +16,15 @@ object WidgetSizing {
 
     fun charWidth(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int): Int {
         val options = appWidgetManager.getAppWidgetOptions(widgetId)
+        // certains launchers ne peuplent que MIN_WIDTH, d'autres MAX_WIDTH —
+        // on prend le plus grand des deux pour refleter la vraie taille choisie
         val minWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
+        val maxWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, minWidthDp)
+        val widthDp = maxOf(minWidthDp, maxWidthDp)
         val density = context.resources.displayMetrics.density
         val scaledDensity = context.resources.displayMetrics.scaledDensity
 
-        val availableWidthPx = (minWidthDp - PADDING_DP) * density
+        val availableWidthPx = (widthDp - PADDING_DP) * density
 
         val paint = Paint().apply {
             typeface = Typeface.MONOSPACE
