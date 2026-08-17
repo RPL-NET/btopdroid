@@ -66,11 +66,15 @@ object BtopRenderer {
 
         sb.append(midBorder(width)).append("\n")
 
-        val upLabel = "net up".padEnd(LABEL_WIDTH)
-        appendGraphRow(sb, width, upLabel, Sparkline.renderUpperAutoScale(netUpHistory, graphWidth), fgColor, "${s.netUpKbps}K/s")
-        sb.append("\n")
+        // mirror comme btop: la rangee du haut "pose sur son plancher" (blocs
+        // bas, grandit vers le bas de l'ecran), celle du dessous "pend du
+        // plafond" (blocs hauts, grandit vers le haut) — les deux se
+        // rencontrent visuellement a la frontiere entre les deux lignes
         val downLabel = "net dn".padEnd(LABEL_WIDTH)
         appendGraphRow(sb, width, downLabel, Sparkline.renderAutoScale(netDownHistory, graphWidth), fgColor, "${s.netDownKbps}K/s")
+        sb.append("\n")
+        val upLabel = "net up".padEnd(LABEL_WIDTH)
+        appendGraphRow(sb, width, upLabel, Sparkline.renderUpperAutoScale(netUpHistory, graphWidth), fgColor, "${s.netUpKbps}K/s")
         sb.append("\n")
 
         sb.append(bottomBorder(width))

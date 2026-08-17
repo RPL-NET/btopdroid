@@ -122,9 +122,12 @@ object SystemStats {
     // /proc/stat direct est bloque par SELinux sur pas mal de devices (Motorola
     // inclus), mais le binaire "top" lui passe par un chemin different et reste
     // lisible meme sans root — meme technique que Kustom (KWGT) utilise.
+    // ProcessBuilder n'herite PAS du $PATH d'un shell interactif — une app
+    // normale (contrairement a Termux qui a son propre $PATH) doit donner
+    // le chemin absolu du binaire, sinon "top" n'est simplement pas trouve.
     private fun readCpuTop(): Int? {
         return try {
-            val process = ProcessBuilder("top", "-bn1").redirectErrorStream(true).start()
+            val process = ProcessBuilder("/system/bin/top", "-bn1").redirectErrorStream(true).start()
             val output = process.inputStream.bufferedReader().readText()
             process.waitFor()
 
