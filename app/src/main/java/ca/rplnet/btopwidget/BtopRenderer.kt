@@ -79,6 +79,17 @@ object BtopRenderer {
 
         sb.append(bottomBorder(width))
 
+        val termuxLines = TermuxLog.readTail(context)
+        if (termuxLines != null) {
+            sb.append("\n").append(topBorder(width, " termux ", " "))
+            for (line in termuxLines) {
+                sb.append("\n")
+                val trimmed = if (line.length > width) line.takeLast(width) else line
+                appendRow(sb, width, trimmed, "")
+            }
+            sb.append("\n").append(bottomBorder(width))
+        }
+
         return sb
     }
 

@@ -2,14 +2,28 @@ package ca.rplnet.btopwidget
 
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
+
+    private val pickFolderLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.data ?: return@registerForActivityResult
+        contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+        TermuxLog.setTreeUri(this, uri)
+        pushWidgetUpdate()
+    }
 
     private lateinit var previewText: TextView
     private lateinit var usernameInput: EditText
@@ -25,6 +39,13 @@ class MainActivity : AppCompatActivity() {
 
         usernameInput.setText(Prefs.getUsername(this))
         hostnameInput.setText(Prefs.getHostname(this))
+
+        findViewById<Button>(R.id.btn_pick_termux_folder).setOnClickListener {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            }
+            pickFolderLauncher.launch(intent)
+        }
 
         val liveBtn = findViewById<Button>(R.id.btn_toggle_live)
         fun updateLiveBtnText() {

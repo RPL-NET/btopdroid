@@ -13,7 +13,7 @@
         android:layout_height="match_parent"
         android:fontFamily="monospace"
         android:textColor="#33FF33"
-        android:maxLines="12"
+        android:maxLines="24"
         android:autoSizeTextType="uniform"
         android:autoSizeMinTextSize="4sp"
         android:autoSizeMaxTextSize="26sp"
