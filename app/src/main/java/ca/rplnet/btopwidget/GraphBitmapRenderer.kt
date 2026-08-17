@@ -119,41 +119,49 @@ object GraphBitmapRenderer {
         return path
     }
 
-    // vrai style btop: chaque point d'historique est une ligne verticale
-    // avec un degrade de couleur (fonce a la base, couleur pleine en haut)
-    // — pas une courbe/aire lissee. C'est litteralement ce que fait btop
-    // avec ses colonnes de caracteres braille en mode "high color".
-    private fun drawGradientColumns(
+    // vrai style btop: grille de petits blocs carres (matrice de points, style
+    // terminal ASCII), avec un degrade "thermometre" — la couleur d'un bloc
+    // depend de SA POSITION verticale (bas=vert, milieu=jaune, haut=rouge),
+    // pas de la hauteur de la colonne. Une colonne courte est toute verte,
+    // une colonne pleine traverse jaune jusqu'au rouge en haut — exactement
+    // le comportement d'un thermometre/VU-metre, pas un simple fondu de
+    // luminosite d'une seule teinte.
+    private val dotPaint = Paint().apply { isAntiAlias = false }
+
+    private fun drawPixelColumns(
         canvas: Canvas,
         values: List<Float>,
         left: Float,
         right: Float,
         baselineY: Float,
         farY: Float, // extremite max possible (haut si ca grandit vers le haut, bas si vers le bas)
-        accentColor: Int
+        metric: MetricColors
     ) {
         if (values.isEmpty()) return
         val n = values.size
         val totalWidth = right - left
         val colSlot = totalWidth / n
-        val colWidth = (colSlot * 0.75f).coerceAtLeast(1.5f)
+        val dotSize = (colSlot * 0.7f).coerceIn(2f, 10f)
+        val gap = 1.5f
+        val fullRange = kotlin.math.abs(farY - baselineY)
+        val dotCount = (fullRange / (dotSize + gap)).toInt().coerceAtLeast(1)
+        val goingUp = farY < baselineY
 
-        val dim = (0x33 shl 24) or (accentColor and 0x00FFFFFF) // meme teinte, tres sombre a la base
-        val bright = (0xFF shl 24) or (accentColor and 0x00FFFFFF)
-        val range = farY - baselineY // negatif si ca grandit vers le haut
-
-        val colPaint = Paint().apply { isAntiAlias = false }
         values.forEachIndexed { i, v ->
-            val x = left + i * colSlot + (colSlot - colWidth) / 2f
-            val tipY = baselineY + v * range
-            if (kotlin.math.abs(baselineY - tipY) < 1f) return@forEachIndexed
-
-            colPaint.shader = android.graphics.LinearGradient(
-                x, baselineY, x, tipY, dim, bright, android.graphics.Shader.TileMode.CLAMP
-            )
-            val top = minOf(baselineY, tipY)
-            val bottom = maxOf(baselineY, tipY)
-            canvas.drawRect(x, top, x + colWidth, bottom, colPaint)
+            val x = left + i * colSlot + (colSlot - dotSize) / 2f
+            val filledDots = (v * dotCount).toInt()
+            for (d in 0 until filledDots) {
+                // position 0 = a la base (0%), position 1 = tout en haut de
+                // l'echelle possible (100%) — independant de la valeur reelle
+                val positionPct = ((d + 1).toFloat() / dotCount) * 100
+                dotPaint.color = metric.colorFor(positionPct.toInt())
+                val y = if (goingUp) {
+                    baselineY - (d + 1) * (dotSize + gap)
+                } else {
+                    baselineY + d * (dotSize + gap)
+                }
+                canvas.drawRect(x, y, x + dotSize, y + dotSize, dotPaint)
+            }
         }
     }
 
@@ -183,11 +191,6 @@ object GraphBitmapRenderer {
         val canvas = Canvas(bmp)
         canvas.drawColor(bgColor)
 
-        // couleur liee au TYPE de metrique (comme le vrai btop: cpu=vert,
-        // ram=rouge, etc — voir MetricColors), pas a la couleur de theme
-        // globale de l'usager. La couleur de theme reste pour le chrome
-        // (bordures, titres, texte) via fgColor.
-        val accent = metric.colorFor(currentPct)
         val inner = drawPanelChrome(canvas, widthPx, heightPx, "$label $valueText", fgColor, bgColor, textSizePx)
 
         gridPaint.color = fgColor
@@ -196,7 +199,7 @@ object GraphBitmapRenderer {
         canvas.drawLine(inner.left, inner.bottom, inner.right, inner.bottom, gridPaint)
 
         val norm = normalize(history)
-        drawGradientColumns(canvas, norm, inner.left, inner.right, inner.bottom, inner.top, accent)
+        drawPixelColumns(canvas, norm, inner.left, inner.right, inner.bottom, inner.top, metric)
 
         drawScanlines(canvas, widthPx, heightPx)
 
@@ -219,7 +222,6 @@ object GraphBitmapRenderer {
         canvas.drawColor(bgColor)
 
         val clamped = pct.coerceIn(0, 100)
-        val accent = metric.colorFor(clamped)
         val inner = drawPanelChrome(canvas, widthPx, heightPx, "$label $clamped%", fgColor, bgColor, textSizePx)
 
         val subTextSize = textSizePx * 0.78f
@@ -246,10 +248,11 @@ object GraphBitmapRenderer {
             val segLeft = barRect.left + i * (segWidth + segGap)
             val segRect = RectF(segLeft, barRect.top, segLeft + segWidth, barRect.bottom)
             if (i < litSegments) {
-                // degrade dim->accent le long des segments allumes, meme esprit que les graphs
-                val t = if (segCount > 1) i.toFloat() / (segCount - 1) else 1f
-                val dimmed = (((0x55 + (0xAA * t)).toInt().coerceIn(0, 255)) shl 24) or (accent and 0x00FFFFFF)
-                litPaint.color = dimmed
+                // thermometre horizontal: la couleur d'un segment depend de
+                // SA position dans l'echelle (gauche=vert, droite=rouge),
+                // pas de la valeur globale — meme logique que les graphs
+                val segmentPct = if (segCount > 1) (i.toFloat() / (segCount - 1)) * 100 else 100f
+                litPaint.color = metric.colorFor(segmentPct.toInt())
                 canvas.drawRect(segRect, litPaint)
             } else {
                 canvas.drawRect(segRect, unlitOutline)
@@ -299,20 +302,18 @@ object GraphBitmapRenderer {
 
         val maxUp = (upHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
         val maxDown = (downHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
-        // indigo pour le download, magenta pour l'upload — identique aux
-        // familles download_*/upload_* du vrai btop
-        val upAccent = MetricColors.NET_UP.colorFor(((upKbps.toFloat() / maxUp) * 100).toInt())
-        val downAccent = MetricColors.NET_DOWN.colorFor(((downKbps.toFloat() / maxDown) * 100).toInt())
 
-        fun drawSide(values: List<Long>, max: Long, goingUp: Boolean, accent: Int) {
+        fun drawSide(values: List<Long>, max: Long, goingUp: Boolean, metric: MetricColors) {
             if (values.isEmpty()) return
             val fracs = values.map { (it.toFloat() / max).coerceIn(0f, 1f) }
             val farY = if (goingUp) inner.top else inner.bottom
-            drawGradientColumns(canvas, fracs, inner.left, inner.right, centerY, farY, accent)
+            drawPixelColumns(canvas, fracs, inner.left, inner.right, centerY, farY, metric)
         }
 
-        drawSide(upHistory, maxUp, goingUp = true, upAccent)
-        drawSide(downHistory, maxDown, goingUp = false, downAccent)
+        // indigo pour le download, magenta pour l'upload — identique aux
+        // familles download_*/upload_* du vrai btop
+        drawSide(upHistory, maxUp, goingUp = true, MetricColors.NET_UP)
+        drawSide(downHistory, maxDown, goingUp = false, MetricColors.NET_DOWN)
 
         drawScanlines(canvas, widthPx, heightPx)
 
