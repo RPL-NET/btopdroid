@@ -127,6 +127,10 @@ object GraphBitmapRenderer {
     // le comportement d'un thermometre/VU-metre, pas un simple fondu de
     // luminosite d'une seule teinte.
     private val dotPaint = Paint().apply { isAntiAlias = false }
+    private val glowPaint = Paint().apply {
+        isAntiAlias = true
+        maskFilter = android.graphics.BlurMaskFilter(3.5f, android.graphics.BlurMaskFilter.Blur.NORMAL)
+    }
 
     private fun drawPixelColumns(
         canvas: Canvas,
@@ -141,8 +145,8 @@ object GraphBitmapRenderer {
         val n = values.size
         val totalWidth = right - left
         val colSlot = totalWidth / n
-        val dotSize = (colSlot * 0.7f).coerceIn(2f, 10f)
-        val gap = 1.5f
+        val dotSize = (colSlot * 0.65f).coerceIn(2f, 7f) // plus petit/dense = look terminal plus fin
+        val gap = 1f
         val fullRange = kotlin.math.abs(farY - baselineY)
         val dotCount = (fullRange / (dotSize + gap)).toInt().coerceAtLeast(1)
         val goingUp = farY < baselineY
@@ -154,12 +158,18 @@ object GraphBitmapRenderer {
                 // position 0 = a la base (0%), position 1 = tout en haut de
                 // l'echelle possible (100%) — independant de la valeur reelle
                 val positionPct = ((d + 1).toFloat() / dotCount) * 100
-                dotPaint.color = metric.colorFor(positionPct.toInt())
+                val color = metric.colorFor(positionPct.toInt())
+                dotPaint.color = color
                 val y = if (goingUp) {
                     baselineY - (d + 1) * (dotSize + gap)
                 } else {
                     baselineY + d * (dotSize + gap)
                 }
+                // lueur phosphore CRT: meme bloc, flou et legerement plus
+                // grand, dessine en dessous du bloc net
+                glowPaint.color = color
+                glowPaint.alpha = 140
+                canvas.drawRect(x - 1f, y - 1f, x + dotSize + 1f, y + dotSize + 1f, glowPaint)
                 canvas.drawRect(x, y, x + dotSize, y + dotSize, dotPaint)
             }
         }
@@ -252,7 +262,14 @@ object GraphBitmapRenderer {
                 // SA position dans l'echelle (gauche=vert, droite=rouge),
                 // pas de la valeur globale — meme logique que les graphs
                 val segmentPct = if (segCount > 1) (i.toFloat() / (segCount - 1)) * 100 else 100f
-                litPaint.color = metric.colorFor(segmentPct.toInt())
+                val color = metric.colorFor(segmentPct.toInt())
+                litPaint.color = color
+                glowPaint.color = color
+                glowPaint.alpha = 120
+                canvas.drawRect(
+                    RectF(segRect.left - 1f, segRect.top - 1f, segRect.right + 1f, segRect.bottom + 1f),
+                    glowPaint
+                )
                 canvas.drawRect(segRect, litPaint)
             } else {
                 canvas.drawRect(segRect, unlitOutline)
