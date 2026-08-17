@@ -62,7 +62,8 @@ class BtopWidgetProvider : AppWidgetProvider() {
             views.setImageViewBitmap(
                 R.id.graph_cpu,
                 GraphBitmapRenderer.renderAreaGraph(
-                    cpuHistory, "cpu(${stats.cpuSource})", (stats.cpuPct?.toString() ?: "n/a") + "%",
+                    cpuHistory, "cpu(${stats.cpuSource})",
+                    "${stats.cpuPct?.toString() ?: "n/a"}%  ${stats.cpuFreqCurMhz ?: "?"}/${stats.cpuFreqMaxMhz ?: "?"}MHz",
                     stats.cpuPct ?: 0, MetricColors.CPU, fg, bg, panelWidth, unitHeight, textSizePx
                 )
             )

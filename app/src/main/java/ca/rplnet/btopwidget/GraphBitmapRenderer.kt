@@ -145,8 +145,8 @@ object GraphBitmapRenderer {
         val n = values.size
         val totalWidth = right - left
         val colSlot = totalWidth / n
-        val dotSize = (colSlot * 0.65f).coerceIn(2f, 7f) // plus petit/dense = look terminal plus fin
-        val gap = 1f
+        val dotSize = (colSlot * 0.9f).coerceIn(2f, 7f) // colonnes quasi collees, comme btop
+        val gap = 0.3f
         val fullRange = kotlin.math.abs(farY - baselineY)
         val dotCount = (fullRange / (dotSize + gap)).toInt().coerceAtLeast(1)
         val goingUp = farY < baselineY
@@ -175,14 +175,12 @@ object GraphBitmapRenderer {
         }
     }
 
-    // graph auto-scale sur le min/max observe dans la fenetre (pas 0-100 fixe)
-    // pour que des metriques stables comme la RAM produisent quand meme une
-    // courbe visible plutot qu'une ligne plate ecrasee dans le bas de l'echelle
+    // echelle ABSOLUE 0-100%, comme le vrai btop — pas de normalisation
+    // relative a la fenetre. Une valeur a 66% doit remplir 66% de la hauteur
+    // du graph, point final, sinon le chiffre affiche et la hauteur du
+    // graph se contredisent visuellement (bug signale par PL).
     private fun normalize(values: List<Int>): List<Float> {
-        if (values.isEmpty()) return emptyList()
-        val min = values.min()
-        val max = values.max().coerceAtLeast(min + 10) // plancher: jamais moins de 10% d'ecart affiche
-        return values.map { (it - min).toFloat() / (max - min) }
+        return values.map { it.coerceIn(0, 100) / 100f }
     }
 
     fun renderAreaGraph(

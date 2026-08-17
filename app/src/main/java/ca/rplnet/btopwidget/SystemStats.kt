@@ -27,6 +27,8 @@ data class Stats(
     val storageTotalGb: Double,
     val cpuPct: Int?,
     val cpuSource: String,
+    val cpuFreqCurMhz: Int?,
+    val cpuFreqMaxMhz: Int?,
     val uptimeStr: String,
     val netDownKbps: Long,
     val netUpKbps: Long,
@@ -76,6 +78,7 @@ object SystemStats {
         val storageUsedPct = if (totalBytes > 0) (usedBytes * 100 / totalBytes).toInt() else 0
 
         val (cpuPct, cpuSource) = readCpuPercent()
+        val cpuFreqDisplay = readCpuFreqDisplay()
 
         val uptimeMs = SystemClock.elapsedRealtime()
         val uptimeStr = formatUptime(uptimeMs)
@@ -99,6 +102,8 @@ object SystemStats {
             storageTotalGb = storageTotalGb,
             cpuPct = cpuPct,
             cpuSource = cpuSource,
+            cpuFreqCurMhz = cpuFreqDisplay?.first,
+            cpuFreqMaxMhz = cpuFreqDisplay?.second,
             uptimeStr = uptimeStr,
             netDownKbps = downKbps,
             netUpKbps = upKbps,
@@ -144,6 +149,30 @@ object SystemStats {
         }
         if (ratios.isEmpty()) return null
         return (ratios.average() * 100).toInt().coerceIn(0, 100)
+    }
+
+    // freq courante/max du coeur "big" (celui avec le plus haut cpuinfo_max_freq)
+    // — plus representatif pour affichage que la moyenne de tous les coeurs
+    // sur un chip big.LITTLE, ou les petits coeurs plafonnent bas
+    private fun readCpuFreqDisplay(): Pair<Int, Int>? {
+        val cores = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        var bestCur = 0L
+        var bestMax = 0L
+        for (i in 0 until cores) {
+            try {
+                val base = "/sys/devices/system/cpu/cpu$i/cpufreq"
+                val cur = RandomAccessFile("$base/scaling_cur_freq", "r").use { it.readLine().trim().toLong() }
+                val max = RandomAccessFile("$base/cpuinfo_max_freq", "r").use { it.readLine().trim().toLong() }
+                if (max > bestMax) {
+                    bestMax = max
+                    bestCur = cur
+                }
+            } catch (e: Exception) {
+                // coeur pas lisible, skip
+            }
+        }
+        if (bestMax <= 0) return null
+        return Pair((bestCur / 1000).toInt(), (bestMax / 1000).toInt())
     }
 
     // /proc/stat direct est bloque par SELinux sur pas mal de devices (Motorola
