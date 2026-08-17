@@ -79,17 +79,30 @@ object BtopRenderer {
 
         sb.append(bottomBorder(width))
 
-        val termuxLines = TermuxLog.readTail(context)
-        if (termuxLines != null) {
-            sb.append("\n").append(topBorder(width, " termux ", " "))
-            for (line in termuxLines) {
-                sb.append("\n")
-                val trimmed = if (line.length > width) line.takeLast(width) else line
-                appendRow(sb, width, trimmed, "")
-            }
-            sb.append("\n").append(bottomBorder(width))
-        }
+        return sb
+    }
 
+    // panel independant, pour le widget termux separe
+    fun renderTermuxPanel(context: android.content.Context, width: Int = DEFAULT_WIDTH): CharSequence {
+        val w = width.coerceAtLeast(28)
+        val sb = SpannableStringBuilder()
+        sb.append(topBorder(w, " termux ", " "))
+
+        val lines = TermuxLog.readTail(context)
+        if (lines == null) {
+            sb.append("\n")
+            appendRow(sb, w, " pas configure — voir app", "")
+        } else if (lines.isEmpty()) {
+            sb.append("\n")
+            appendRow(sb, w, " (session vide)", "")
+        } else {
+            for (line in lines) {
+                sb.append("\n")
+                val trimmed = if (line.length > w) line.takeLast(w) else line
+                appendRow(sb, w, trimmed, "")
+            }
+        }
+        sb.append("\n").append(bottomBorder(w))
         return sb
     }
 

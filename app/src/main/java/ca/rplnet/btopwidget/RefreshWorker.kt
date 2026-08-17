@@ -15,12 +15,21 @@ class RefreshWorker(context: Context, params: WorkerParameters) :
 
     override suspend fun doWork(): Result {
         val appWidgetManager = AppWidgetManager.getInstance(applicationContext)
-        val widgetIds = appWidgetManager.getAppWidgetIds(
+
+        val btopIds = appWidgetManager.getAppWidgetIds(
             ComponentName(applicationContext, BtopWidgetProvider::class.java)
         )
-        for (id in widgetIds) {
+        for (id in btopIds) {
             BtopWidgetProvider.updateWidget(applicationContext, appWidgetManager, id)
         }
+
+        val termuxIds = appWidgetManager.getAppWidgetIds(
+            ComponentName(applicationContext, TermuxWidgetProvider::class.java)
+        )
+        for (id in termuxIds) {
+            TermuxWidgetProvider.updateWidget(applicationContext, appWidgetManager, id)
+        }
+
         return Result.success()
     }
 

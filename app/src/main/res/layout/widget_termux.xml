@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#000000"
+    android:padding="6dp">
+
+    <TextView
+        android:id="@+id/widget_text"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fontFamily="monospace"
+        android:textColor="#33FF33"
+        android:maxLines="16"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="4sp"
+        android:autoSizeMaxTextSize="26sp"
+        android:autoSizeStepGranularity="1sp"
+        android:includeFontPadding="false"
+        android:text="termux\ninit…" />
+
+</LinearLayout>

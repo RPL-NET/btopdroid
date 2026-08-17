@@ -42,5 +42,16 @@
                 android:resource="@xml/btop_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".TermuxWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/termux_widget_info" />
+        </receiver>
+
     </application>
 </manifest>

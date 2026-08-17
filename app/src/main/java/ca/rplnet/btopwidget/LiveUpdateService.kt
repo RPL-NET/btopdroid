@@ -28,12 +28,21 @@ class LiveUpdateService : Service() {
         override fun run() {
             if (!running) return
             val appWidgetManager = AppWidgetManager.getInstance(applicationContext)
-            val ids = appWidgetManager.getAppWidgetIds(
+
+            val btopIds = appWidgetManager.getAppWidgetIds(
                 ComponentName(applicationContext, BtopWidgetProvider::class.java)
             )
-            for (id in ids) {
+            for (id in btopIds) {
                 BtopWidgetProvider.updateWidget(applicationContext, appWidgetManager, id)
             }
+
+            val termuxIds = appWidgetManager.getAppWidgetIds(
+                ComponentName(applicationContext, TermuxWidgetProvider::class.java)
+            )
+            for (id in termuxIds) {
+                TermuxWidgetProvider.updateWidget(applicationContext, appWidgetManager, id)
+            }
+
             handler.postDelayed(this, INTERVAL_MS)
         }
     }
