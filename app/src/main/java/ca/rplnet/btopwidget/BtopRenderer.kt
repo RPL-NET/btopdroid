@@ -117,34 +117,34 @@ object BtopRenderer {
         val contentLen = label.length + graph.size + value.length
         val fill = (width - contentLen).coerceAtLeast(1)
 
-        sb.append("│").append(label)
+        sb.append("|").append(label)
         for ((ch, pct) in graph) {
             val start = sb.length
             sb.append(ch)
             sb.setSpan(ForegroundColorSpan(colorFor(fgColor, pct)), start, sb.length, 0)
         }
-        sb.append(" ".repeat(fill)).append(value).append("│")
+        sb.append(" ".repeat(fill)).append(value).append("|")
     }
 
     private fun appendRow(sb: SpannableStringBuilder, width: Int, left: String, right: String) {
         val content = left.length + right.length
         val fill = (width - content).coerceAtLeast(1)
-        sb.append("│").append(left).append(" ".repeat(fill)).append(right).append("│")
+        sb.append("|").append(left).append(" ".repeat(fill)).append(right).append("|")
     }
 
     private fun topBorder(width: Int, leftLabel: String, rightLabel: String): String {
         val used = leftLabel.length + rightLabel.length
         val fill = (width - used - 2).coerceAtLeast(1)
-        return "┌─$leftLabel${"─".repeat(fill)}$rightLabel─┐"
+        return "+-$leftLabel${"-".repeat(fill)}$rightLabel-+"
     }
 
-    private fun midBorder(width: Int): String = "├" + "─".repeat(width) + "┤"
+    private fun midBorder(width: Int): String = "+" + "-".repeat(width) + "+"
 
-    private fun bottomBorder(width: Int): String = "└" + "─".repeat(width) + "┘"
+    private fun bottomBorder(width: Int): String = "+" + "-".repeat(width) + "+"
 
     private fun meterBar(pct: Int, width: Int): String {
         val clamped = pct.coerceIn(0, 100)
         val filled = (clamped * width) / 100
-        return "[" + "█".repeat(filled) + "░".repeat((width - 2 - filled).coerceAtLeast(0)) + "]"
+        return "[" + "#".repeat(filled) + "-".repeat((width - 2 - filled).coerceAtLeast(0)) + "]"
     }
 }

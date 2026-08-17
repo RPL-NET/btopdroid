@@ -1,12 +1,12 @@
 package ca.rplnet.btopwidget
 
-// Genere un mini-graph en caracteres de blocs Unicode (comme btop), pas une
-// ligne dessinee — chaque caractere represente un niveau 0-8 (9 paliers).
-// Retourne les paires (caractere, pourcentage) pour permettre au renderer
-// d'appliquer un degrade de couleur fonce->pale par caractere, comme btop.
+// Genere un mini-graph en caracteres ASCII purs — les caracteres Unicode de
+// blocs/boite (▁▂▃█ ┌─│) ne sont PAS garantis monospace sur toutes les
+// polices Android (confirme sur Motorola: la police de fallback utilisee
+// pour ces glyphes a une largeur d'avance differente de l'ASCII, ce qui
+// casse tout l'alignement). ASCII pur = garanti safe partout.
 object Sparkline {
-    private val BLOCKS = charArrayOf(' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
-    private val UPPER_BLOCKS = charArrayOf(' ', '▔', '▔', '▀', '▀', '▀', '█', '█', '█')
+    private val LEVELS = charArrayOf(' ', '.', ':', '-', '=', 'x', '+', '*', '#')
 
     fun render(values: List<Int>, width: Int): List<Pair<Char, Int>> {
         if (values.isEmpty()) return List(width) { Pair(' ', 0) }
@@ -15,7 +15,7 @@ object Sparkline {
 
         return recent.map { v ->
             val pct = v.coerceIn(0, 100)
-            Pair(BLOCKS[(pct * 8) / 100], pct)
+            Pair(LEVELS[(pct * 8) / 100], pct)
         }
     }
 
@@ -25,15 +25,9 @@ object Sparkline {
         return render(values.map { (it * 100 / max).toInt() }, width)
     }
 
-    fun renderUpperAutoScale(values: List<Long>, width: Int): List<Pair<Char, Int>> {
-        if (values.isEmpty()) return List(width) { Pair(' ', 0) }
-        val max = values.maxOrNull()?.coerceAtLeast(1) ?: 1
-        val recent = if (values.size >= width) values.takeLast(width)
-        else List(width - values.size) { 0L } + values
-
-        return recent.map { v ->
-            val pct = (v * 100 / max).toInt().coerceIn(0, 100)
-            Pair(UPPER_BLOCKS[(pct * 8) / 100], pct)
-        }
-    }
+    // meme charset — la distinction "suspendu du plafond" se fait juste par
+    // la position de la rangee (au-dessus vs en-dessous), pas par un jeu de
+    // caracteres different, pour rester 100% ASCII-safe
+    fun renderUpperAutoScale(values: List<Long>, width: Int): List<Pair<Char, Int>> =
+        renderAutoScale(values, width)
 }
