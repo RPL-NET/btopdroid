@@ -115,8 +115,8 @@ object SystemStats {
     private fun readCpuPercent(): Pair<Int?, String> {
         readCpuStat()?.let { return Pair(it, "stat") }
         readLoadAvg()?.let { return Pair(it, "loadavg") }
-        readCpuTop()?.let { return Pair(it, "top") }
-        return Pair(null, "bloqué")
+        val (pct, debug) = readCpuTop()
+        return Pair(pct, debug)
     }
 
     // /proc/stat direct est bloque par SELinux sur pas mal de devices (Motorola
@@ -125,25 +125,35 @@ object SystemStats {
     // ProcessBuilder n'herite PAS du $PATH d'un shell interactif — une app
     // normale (contrairement a Termux qui a son propre $PATH) doit donner
     // le chemin absolu du binaire, sinon "top" n'est simplement pas trouve.
-    private fun readCpuTop(): Int? {
+    // encode le detail brut dans le "source" retourne, visible directement
+    // sur le widget (label du graph) — pour arreter de deviner a l'aveugle
+    // si ca echoue encore, on a la vraie cause sous les yeux sans round-trip
+    private fun readCpuTop(): Pair<Int?, String> {
         return try {
             val process = ProcessBuilder("/system/bin/top", "-bn1").redirectErrorStream(true).start()
             val output = process.inputStream.bufferedReader().readText()
             process.waitFor()
 
-            // cherche une ligne du genre "800%cpu  0%user  0%nice  0%sys  800%idle ..."
-            val regex = Regex("""(\d+)%idle""")
-            val match = regex.find(output) ?: return null
-            val idlePct = match.groupValues[1].toInt()
+            if (output.isBlank()) return Pair(null, "top:vide")
 
-            val cpuLineRegex = Regex("""(\d+)%cpu""")
-            val totalMatch = cpuLineRegex.find(output) ?: return null
+            val idleMatch = Regex("""(\d+)%idle""").find(output)
+            val totalMatch = Regex("""(\d+)%cpu""").find(output)
+
+            if (idleMatch == null || totalMatch == null) {
+                // output recu mais regex n'a rien trouve — montre les 30
+                // premiers caracteres pour voir le vrai format retourne
+                val snippet = output.take(30).replace("\n", "|")
+                return Pair(null, "top:fmt[$snippet]")
+            }
+
+            val idlePct = idleMatch.groupValues[1].toInt()
             val totalPct = totalMatch.groupValues[1].toInt()
 
-            if (totalPct <= 0) return null
-            (100 - (idlePct * 100 / totalPct)).coerceIn(0, 100)
+            if (totalPct <= 0) return Pair(null, "top:total0")
+            val pct = (100 - (idlePct * 100 / totalPct)).coerceIn(0, 100)
+            Pair(pct, "top:$idlePct/$totalPct")
         } catch (e: Exception) {
-            null
+            Pair(null, "exc:${e.javaClass.simpleName}")
         }
     }
 

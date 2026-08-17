@@ -5,9 +5,7 @@ package ca.rplnet.btopwidget
 object BtopRenderer {
 
     fun renderHeader(s: Stats, username: String, hostname: String): String {
-        val chargeTag = if (s.charging) "chg" else "bat"
-        return "$username@$hostname  up ${s.uptimeStr}\n" +
-            "${s.clock}  ${s.date}  $chargeTag ${s.batteryPct}% ${"%.1f".format(s.batteryVoltageV)}V ${"%.0f".format(s.batteryTempC)}C"
+        return "$username@$hostname  up ${s.uptimeStr}\n${s.clock}  ${s.date}"
     }
 
     fun renderTermuxPanel(context: android.content.Context): CharSequence {

@@ -3,7 +3,6 @@ package ca.rplnet.btopwidget
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.Typeface
 
 // Rendu Canvas->Bitmap, injecte dans le widget via ImageView.setImageViewBitmap().
@@ -19,11 +18,6 @@ object GraphBitmapRenderer {
     }
     private val gridPaint = Paint().apply { strokeWidth = 1f }
     private val fillPaint = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
-    private val linePaint = Paint().apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 3f
-        isAntiAlias = true
-    }
 
     // graph auto-scale sur le min/max observe dans la fenetre (pas 0-100 fixe)
     // pour que des metriques stables comme la RAM produisent quand meme une
@@ -35,6 +29,9 @@ object GraphBitmapRenderer {
         return values.map { (it - min).toFloat() / (max - min) }
     }
 
+    // vrai style btop: des mini-carres/barres dessinees au pixel, pas une
+    // courbe lisse — chaque point d'historique est un petit rectangle avec
+    // un espace entre chacun, hauteur proportionnelle a la valeur normalisee
     fun renderAreaGraph(
         history: List<Int>,
         label: String,
@@ -65,30 +62,24 @@ object GraphBitmapRenderer {
         canvas.drawLine(graphLeft, graphBottom, graphRight, graphBottom, gridPaint)
 
         val norm = normalize(history)
-        if (norm.size >= 2) {
-            val stepX = (graphRight - graphLeft) / (norm.size - 1)
-            val fill = Path()
-            val line = Path()
+        if (norm.isNotEmpty()) {
+            val n = norm.size
+            val totalWidth = graphRight - graphLeft
+            val barSlot = totalWidth / n
+            val barWidth = (barSlot * 0.7f).coerceAtLeast(1f)
+            val gap = barSlot - barWidth
+
             norm.forEachIndexed { i, v ->
-                val x = graphLeft + stepX * i
-                val y = graphBottom - v * graphHeight
-                if (i == 0) {
-                    fill.moveTo(x, graphBottom); fill.lineTo(x, y)
-                    line.moveTo(x, y)
-                } else {
-                    fill.lineTo(x, y)
-                    line.lineTo(x, y)
-                }
+                val barHeight = v * graphHeight
+                val left = graphLeft + i * barSlot + gap / 2f
+                val top = graphBottom - barHeight
+                val right = left + barWidth
+
+                // degrade fonce->pale par barre selon l'intensite, comme btop
+                fillPaint.color = fgColor
+                fillPaint.alpha = 90 + (v * 165).toInt().coerceIn(0, 165)
+                canvas.drawRect(left, top, right, graphBottom, fillPaint)
             }
-            fill.lineTo(graphRight, graphBottom)
-            fill.close()
-
-            fillPaint.color = fgColor
-            fillPaint.alpha = 70
-            canvas.drawPath(fill, fillPaint)
-
-            linePaint.color = fgColor
-            canvas.drawPath(line, linePaint)
         }
 
         return bmp
@@ -173,30 +164,29 @@ object GraphBitmapRenderer {
         val maxUp = (upHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
         val maxDown = (downHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
 
+        // mini-carres comme le reste des graphs, pas une courbe lisse
         fun drawSide(values: List<Long>, max: Long, goingUp: Boolean) {
-            if (values.size < 2) return
-            val stepX = (graphRight - graphLeft) / (values.size - 1)
-            val fill = Path()
-            val line = Path()
+            if (values.isEmpty()) return
+            val n = values.size
+            val totalWidth = graphRight - graphLeft
+            val barSlot = totalWidth / n
+            val barWidth = (barSlot * 0.7f).coerceAtLeast(1f)
+            val gap = barSlot - barWidth
+
             values.forEachIndexed { i, v ->
-                val x = graphLeft + stepX * i
                 val frac = (v.toFloat() / max).coerceIn(0f, 1f)
-                val y = if (goingUp) centerY - frac * halfHeight else centerY + frac * halfHeight
-                if (i == 0) {
-                    fill.moveTo(x, centerY); fill.lineTo(x, y)
-                    line.moveTo(x, y)
-                } else {
-                    fill.lineTo(x, y)
-                    line.lineTo(x, y)
-                }
+                val barHeight = frac * halfHeight
+                val left = graphLeft + i * barSlot + gap / 2f
+                val right = left + barWidth
+                val top: Float
+                val bottom: Float
+                if (goingUp) { top = centerY - barHeight; bottom = centerY }
+                else { top = centerY; bottom = centerY + barHeight }
+
+                fillPaint.color = fgColor
+                fillPaint.alpha = 90 + (frac * 165).toInt().coerceIn(0, 165)
+                canvas.drawRect(left, top, right, bottom, fillPaint)
             }
-            fill.lineTo(graphRight, centerY)
-            fill.close()
-            fillPaint.color = fgColor
-            fillPaint.alpha = 70
-            canvas.drawPath(fill, fillPaint)
-            linePaint.color = fgColor
-            canvas.drawPath(line, linePaint)
         }
 
         drawSide(upHistory, maxUp, goingUp = true)

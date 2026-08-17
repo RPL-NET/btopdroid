@@ -13,7 +13,11 @@
         android:layout_height="wrap_content"
         android:fontFamily="monospace"
         android:textColor="#33FF33"
-        android:textSize="11sp"
+        android:maxLines="2"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="6sp"
+        android:autoSizeMaxTextSize="16sp"
+        android:autoSizeStepGranularity="1sp"
         android:includeFontPadding="false"
         android:text="btopdroid\ninit…" />
 
@@ -22,7 +26,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="3dp"
         android:scaleType="fitXY" />
 
     <ImageView
@@ -30,23 +34,31 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="3dp"
+        android:scaleType="fitXY" />
+
+    <ImageView
+        android:id="@+id/meter_bat"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.8"
+        android:layout_marginTop="3dp"
         android:scaleType="fitXY" />
 
     <ImageView
         android:id="@+id/meter_disk"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="4dp"
+        android:layout_weight="0.8"
+        android:layout_marginTop="3dp"
         android:scaleType="fitXY" />
 
     <ImageView
         android:id="@+id/graph_net"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1.4"
-        android:layout_marginTop="4dp"
+        android:layout_weight="1.2"
+        android:layout_marginTop="3dp"
         android:scaleType="fitXY" />
 
 </LinearLayout>
