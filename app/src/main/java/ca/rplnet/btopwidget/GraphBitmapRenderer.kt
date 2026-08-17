@@ -100,24 +100,6 @@ object GraphBitmapRenderer {
         )
     }
 
-    // derive une couleur d'intensite a partir de la couleur de base choisie
-    // par l'usager, en glissant la teinte vers le rouge quand la charge
-    // augmente — comme le degrade vert->jaune->rouge de btop, mais ancre
-    // sur SA couleur plutot que hardcode. Reste a la teinte de base sous
-    // ~55%, glisse progressivement vers le rouge au-dessus.
-    private fun thresholdColor(baseColor: Int, pct: Int): Int {
-        val clamped = pct.coerceIn(0, 100)
-        if (clamped <= 55) return baseColor
-        val hsv = FloatArray(3)
-        Color.colorToHSV(baseColor, hsv)
-        val t = ((clamped - 55) / 45f).coerceIn(0f, 1f)
-        // interpole la teinte vers 0 (rouge), en passant par 40 (orange/jaune)
-        val targetHue = 40f * (1f - t) + 0f * t
-        hsv[0] = hsv[0] * (1f - t) + targetHue * t
-        hsv[1] = hsv[1].coerceAtLeast(0.85f)
-        return Color.HSVToColor(Color.alpha(baseColor), hsv)
-    }
-
     // courbe lissee entre les points (au lieu d'une ligne brisee point-a-point)
     // via des points de controle a mi-chemin, technique classique pour un
     // rendu "fluide" sans dependre d'aucune police/glyphe
@@ -190,6 +172,7 @@ object GraphBitmapRenderer {
         label: String,
         valueText: String,
         currentPct: Int,
+        metric: MetricColors,
         fgColor: Int,
         bgColor: Int,
         widthPx: Int,
@@ -200,7 +183,11 @@ object GraphBitmapRenderer {
         val canvas = Canvas(bmp)
         canvas.drawColor(bgColor)
 
-        val accent = thresholdColor(fgColor, currentPct)
+        // couleur liee au TYPE de metrique (comme le vrai btop: cpu=vert,
+        // ram=rouge, etc — voir MetricColors), pas a la couleur de theme
+        // globale de l'usager. La couleur de theme reste pour le chrome
+        // (bordures, titres, texte) via fgColor.
+        val accent = metric.colorFor(currentPct)
         val inner = drawPanelChrome(canvas, widthPx, heightPx, "$label $valueText", fgColor, bgColor, textSizePx)
 
         gridPaint.color = fgColor
@@ -220,6 +207,7 @@ object GraphBitmapRenderer {
         pct: Int,
         label: String,
         subtitle: String,
+        metric: MetricColors,
         fgColor: Int,
         bgColor: Int,
         widthPx: Int,
@@ -231,7 +219,7 @@ object GraphBitmapRenderer {
         canvas.drawColor(bgColor)
 
         val clamped = pct.coerceIn(0, 100)
-        val accent = thresholdColor(fgColor, clamped)
+        val accent = metric.colorFor(clamped)
         val inner = drawPanelChrome(canvas, widthPx, heightPx, "$label $clamped%", fgColor, bgColor, textSizePx)
 
         val subTextSize = textSizePx * 0.78f
@@ -311,8 +299,10 @@ object GraphBitmapRenderer {
 
         val maxUp = (upHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
         val maxDown = (downHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
-        val upAccent = thresholdColor(fgColor, ((upKbps.toFloat() / maxUp) * 100).toInt())
-        val downAccent = thresholdColor(fgColor, ((downKbps.toFloat() / maxDown) * 100).toInt())
+        // indigo pour le download, magenta pour l'upload — identique aux
+        // familles download_*/upload_* du vrai btop
+        val upAccent = MetricColors.NET_UP.colorFor(((upKbps.toFloat() / maxUp) * 100).toInt())
+        val downAccent = MetricColors.NET_DOWN.colorFor(((downKbps.toFloat() / maxDown) * 100).toInt())
 
         fun drawSide(values: List<Long>, max: Long, goingUp: Boolean, accent: Int) {
             if (values.isEmpty()) return

@@ -63,14 +63,14 @@ class BtopWidgetProvider : AppWidgetProvider() {
                 R.id.graph_cpu,
                 GraphBitmapRenderer.renderAreaGraph(
                     cpuHistory, "cpu(${stats.cpuSource})", (stats.cpuPct?.toString() ?: "n/a") + "%",
-                    stats.cpuPct ?: 0, fg, bg, panelWidth, unitHeight, textSizePx
+                    stats.cpuPct ?: 0, MetricColors.CPU, fg, bg, panelWidth, unitHeight, textSizePx
                 )
             )
             views.setImageViewBitmap(
                 R.id.graph_ram,
                 GraphBitmapRenderer.renderAreaGraph(
                     ramHistory, "ram", "${stats.ramUsedPct}%", stats.ramUsedPct,
-                    fg, bg, panelWidth, unitHeight, textSizePx
+                    MetricColors.RAM, fg, bg, panelWidth, unitHeight, textSizePx
                 )
             )
             val batChargeTag = if (stats.charging) "chg" else "bat"
@@ -79,7 +79,7 @@ class BtopWidgetProvider : AppWidgetProvider() {
                 GraphBitmapRenderer.renderMeter(
                     stats.batteryPct, batChargeTag,
                     "%.1fV  %.0fC".format(stats.batteryVoltageV, stats.batteryTempC),
-                    fg, bg, panelWidth, meterHeight, textSizePx
+                    MetricColors.BATTERY, fg, bg, panelWidth, meterHeight, textSizePx
                 )
             )
             views.setImageViewBitmap(
@@ -87,7 +87,7 @@ class BtopWidgetProvider : AppWidgetProvider() {
                 GraphBitmapRenderer.renderMeter(
                     stats.storageUsedPct, "dsk",
                     "%.1fG / %.1fG".format(stats.storageUsedGb, stats.storageTotalGb),
-                    fg, bg, panelWidth, meterHeight, textSizePx
+                    MetricColors.DISK, fg, bg, panelWidth, meterHeight, textSizePx
                 )
             )
             views.setImageViewBitmap(
