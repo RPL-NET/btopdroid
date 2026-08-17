@@ -8,6 +8,14 @@ object Prefs {
     private const val KEY_BG_COLOR = "bg_color"
     private const val KEY_USERNAME = "username"
     private const val KEY_HOSTNAME = "hostname"
+    private const val KEY_LIVE_UPDATE = "live_update_enabled"
+
+    fun isLiveUpdateEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_LIVE_UPDATE, false)
+
+    fun setLiveUpdateEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_LIVE_UPDATE, enabled).apply()
+    }
 
     // presets couleur: nom -> (foreground, background)
     val COLOR_PRESETS = linkedMapOf(

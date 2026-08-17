@@ -39,6 +39,30 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:text="Refresh temps réel (~2s)"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingTop="20dp"
+            android:paddingBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Nécessite un foreground service (notification persistante) et consomme plus de batterie. Désactivé par défaut."
+            android:textColor="#AAAAAA"
+            android:textSize="12sp"
+            android:paddingBottom="8dp" />
+
+        <Button
+            android:id="@+id/btn_toggle_live"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Activer" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="Identité (user@hostname)"
             android:textColor="#FFFFFF"
             android:textSize="16sp"

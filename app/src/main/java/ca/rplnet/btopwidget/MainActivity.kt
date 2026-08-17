@@ -26,6 +26,20 @@ class MainActivity : AppCompatActivity() {
         usernameInput.setText(Prefs.getUsername(this))
         hostnameInput.setText(Prefs.getHostname(this))
 
+        val liveBtn = findViewById<Button>(R.id.btn_toggle_live)
+        fun updateLiveBtnText() {
+            liveBtn.text = if (Prefs.isLiveUpdateEnabled(this)) "Désactiver" else "Activer"
+        }
+        updateLiveBtnText()
+        liveBtn.setOnClickListener {
+            if (Prefs.isLiveUpdateEnabled(this)) {
+                LiveUpdateService.stop(this)
+            } else {
+                LiveUpdateService.start(this)
+            }
+            updateLiveBtnText()
+        }
+
         findViewById<Button>(R.id.btn_save_identity).setOnClickListener {
             val user = usernameInput.text.toString().ifBlank { "user" }
             val host = hostnameInput.text.toString().ifBlank { "android" }
