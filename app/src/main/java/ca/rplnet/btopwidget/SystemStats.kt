@@ -115,8 +115,35 @@ object SystemStats {
     private fun readCpuPercent(): Pair<Int?, String> {
         readCpuStat()?.let { return Pair(it, "stat") }
         readLoadAvg()?.let { return Pair(it, "loadavg") }
+        readCpuFreq()?.let { return Pair(it, "freq") }
         val (pct, debug) = readCpuTop()
         return Pair(pct, debug)
+    }
+
+    // /proc/stat et /proc/loadavg bloques par SELinux, mais les fichiers
+    // cpufreq (frequence courante/min/max par coeur) restent lisibles —
+    // confirme empiriquement sur ce Motorola. C'est la meme source que
+    // Kustom (KWGT) utilise pour ses champs fcur/fmax/fmin. Proxy de charge:
+    // ratio (freq_actuelle - freq_min) / (freq_max - freq_min), moyenne
+    // sur tous les coeurs lisibles.
+    private fun readCpuFreq(): Int? {
+        val cores = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        val ratios = mutableListOf<Float>()
+        for (i in 0 until cores) {
+            try {
+                val base = "/sys/devices/system/cpu/cpu$i/cpufreq"
+                val cur = RandomAccessFile("$base/scaling_cur_freq", "r").use { it.readLine().trim().toLong() }
+                val min = RandomAccessFile("$base/cpuinfo_min_freq", "r").use { it.readLine().trim().toLong() }
+                val max = RandomAccessFile("$base/cpuinfo_max_freq", "r").use { it.readLine().trim().toLong() }
+                if (max > min) {
+                    ratios.add(((cur - min).toFloat() / (max - min)).coerceIn(0f, 1f))
+                }
+            } catch (e: Exception) {
+                // ce coeur precis est peut-etre offline/hotplugged, on skip
+            }
+        }
+        if (ratios.isEmpty()) return null
+        return (ratios.average() * 100).toInt().coerceIn(0, 100)
     }
 
     // /proc/stat direct est bloque par SELinux sur pas mal de devices (Motorola
