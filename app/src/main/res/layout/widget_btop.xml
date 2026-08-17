@@ -7,19 +7,12 @@
     android:background="#000000"
     android:padding="6dp">
 
-    <TextView
+    <ImageView
         android:id="@+id/widget_header"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fontFamily="monospace"
-        android:textColor="#33FF33"
-        android:maxLines="2"
-        android:autoSizeTextType="uniform"
-        android:autoSizeMinTextSize="6sp"
-        android:autoSizeMaxTextSize="16sp"
-        android:autoSizeStepGranularity="1sp"
-        android:includeFontPadding="false"
-        android:text="btopdroid\ninit…" />
+        android:layout_height="0dp"
+        android:layout_weight="0.7"
+        android:scaleType="fitXY" />
 
     <ImageView
         android:id="@+id/graph_cpu"

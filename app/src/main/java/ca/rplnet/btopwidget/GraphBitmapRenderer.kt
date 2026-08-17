@@ -2,8 +2,10 @@ package ca.rplnet.btopwidget
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 
 // Rendu Canvas->Bitmap, injecte dans le widget via ImageView.setImageViewBitmap().
@@ -12,6 +14,14 @@ import android.graphics.Typeface
 // sur toutes les polices Android — un Bitmap dessine au pixel pres n'a
 // aucun risque de ce genre, peu importe la police du systeme.
 object GraphBitmapRenderer {
+
+    // constantes de style partagees par tous les panels, pour une coherence
+    // visuelle stricte (meme padding, meme rayon de coin, meme epaisseur
+    // de bordure partout — plus d'incoherences panel a panel)
+    private const val PADDING = 6f
+    private const val CORNER_RADIUS = 0f // coins carres, style terminal — pas de pilules arrondies
+    private const val BORDER_STROKE = 2f
+    private const val SCANLINE_SPACING = 3f // effet CRT subtil
 
     private val labelPaint = Paint().apply {
         isAntiAlias = true
@@ -25,6 +35,87 @@ object GraphBitmapRenderer {
         isAntiAlias = true
         strokeJoin = Paint.Join.ROUND
         strokeCap = Paint.Cap.ROUND
+    }
+    private val borderPaint = Paint().apply {
+        style = Paint.Style.STROKE
+        strokeWidth = BORDER_STROKE
+        isAntiAlias = true
+    }
+    private val titleBgPaint = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
+    private val scanlinePaint = Paint().apply { color = Color.BLACK; alpha = 22; strokeWidth = 1f }
+
+    // effet CRT/terminal subtil — fines lignes horizontales sombres a
+    // intervalle regulier, par-dessus tout le contenu du panel
+    private fun drawScanlines(canvas: Canvas, widthPx: Int, heightPx: Int) {
+        var y = 0f
+        while (y < heightPx) {
+            canvas.drawLine(0f, y, widthPx.toFloat(), y, scanlinePaint)
+            y += SCANLINE_SPACING
+        }
+    }
+
+    // Cadre de panel style btop: bordure arrondie + titre incruste dans la
+    // bordure du haut (un petit rectangle de la couleur de fond "coupe" la
+    // ligne de bordure pour laisser respirer le texte du titre, exactement
+    // le look des panels btop). Retourne le rect interieur utilisable pour
+    // dessiner le contenu du panel (graph/meter), une fois la bordure/titre
+    // retires de l'espace disponible.
+    private fun drawPanelChrome(
+        canvas: Canvas,
+        widthPx: Int,
+        heightPx: Int,
+        title: String,
+        fgColor: Int,
+        bgColor: Int,
+        textSizePx: Float
+    ): RectF {
+        val w = widthPx.toFloat()
+        val h = heightPx.toFloat()
+        val borderRect = RectF(BORDER_STROKE, BORDER_STROKE, w - BORDER_STROKE, h - BORDER_STROKE)
+
+        borderPaint.color = fgColor
+        borderPaint.alpha = 140
+        canvas.drawRoundRect(borderRect, CORNER_RADIUS, CORNER_RADIUS, borderPaint)
+
+        // titre incruste dans la bordure du haut, prefixe "$" style prompt
+        val promptTitle = "$ $title"
+        val titleTextSize = textSizePx * 0.82f
+        labelPaint.textSize = titleTextSize
+        labelPaint.color = fgColor
+        val titleWidth = labelPaint.measureText(promptTitle)
+        val titleX = PADDING + 4f
+        val titleY = BORDER_STROKE + titleTextSize * 0.85f
+
+        titleBgPaint.color = bgColor
+        canvas.drawRect(titleX - 3f, 0f, titleX + titleWidth + 3f, BORDER_STROKE + 1f, titleBgPaint)
+        canvas.drawText(promptTitle, titleX, titleY, labelPaint)
+
+        // rect interieur dispo pour le contenu, sous le titre incruste
+        val contentTop = titleY + PADDING * 0.6f
+        return RectF(
+            PADDING + BORDER_STROKE,
+            contentTop,
+            w - PADDING - BORDER_STROKE,
+            h - PADDING - BORDER_STROKE
+        )
+    }
+
+    // derive une couleur d'intensite a partir de la couleur de base choisie
+    // par l'usager, en glissant la teinte vers le rouge quand la charge
+    // augmente — comme le degrade vert->jaune->rouge de btop, mais ancre
+    // sur SA couleur plutot que hardcode. Reste a la teinte de base sous
+    // ~55%, glisse progressivement vers le rouge au-dessus.
+    private fun thresholdColor(baseColor: Int, pct: Int): Int {
+        val clamped = pct.coerceIn(0, 100)
+        if (clamped <= 55) return baseColor
+        val hsv = FloatArray(3)
+        Color.colorToHSV(baseColor, hsv)
+        val t = ((clamped - 55) / 45f).coerceIn(0f, 1f)
+        // interpole la teinte vers 0 (rouge), en passant par 40 (orange/jaune)
+        val targetHue = 40f * (1f - t) + 0f * t
+        hsv[0] = hsv[0] * (1f - t) + targetHue * t
+        hsv[1] = hsv[1].coerceAtLeast(0.85f)
+        return Color.HSVToColor(Color.alpha(baseColor), hsv)
     }
 
     // courbe lissee entre les points (au lieu d'une ligne brisee point-a-point)
@@ -56,59 +147,53 @@ object GraphBitmapRenderer {
         return values.map { (it - min).toFloat() / (max - min) }
     }
 
-    // vrai style btop: des mini-carres/barres dessinees au pixel, pas une
-    // courbe lisse — chaque point d'historique est un petit rectangle avec
-    // un espace entre chacun, hauteur proportionnelle a la valeur normalisee
     fun renderAreaGraph(
         history: List<Int>,
         label: String,
         valueText: String,
+        currentPct: Int,
         fgColor: Int,
         bgColor: Int,
         widthPx: Int,
-        heightPx: Int
+        heightPx: Int,
+        textSizePx: Float
     ): Bitmap {
         val bmp = Bitmap.createBitmap(widthPx.coerceAtLeast(1), heightPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         canvas.drawColor(bgColor)
 
-        val textSize = heightPx * 0.22f
-        labelPaint.textSize = textSize
-        labelPaint.color = fgColor
-        canvas.drawText("$label $valueText", 4f, textSize, labelPaint)
-
-        val graphTop = textSize + 6f
-        val graphBottom = heightPx - 4f
-        val graphLeft = 4f
-        val graphRight = widthPx - 4f
-        val graphHeight = (graphBottom - graphTop).coerceAtLeast(1f)
+        val accent = thresholdColor(fgColor, currentPct)
+        val inner = drawPanelChrome(canvas, widthPx, heightPx, "$label $valueText", fgColor, bgColor, textSizePx)
 
         gridPaint.color = fgColor
-        gridPaint.alpha = 35
-        canvas.drawLine(graphLeft, graphTop, graphRight, graphTop, gridPaint)
-        canvas.drawLine(graphLeft, graphBottom, graphRight, graphBottom, gridPaint)
+        gridPaint.alpha = 30
+        canvas.drawLine(inner.left, inner.top, inner.right, inner.top, gridPaint)
+        canvas.drawLine(inner.left, inner.bottom, inner.right, inner.bottom, gridPaint)
 
+        val graphHeight = (inner.bottom - inner.top).coerceAtLeast(1f)
         val norm = normalize(history)
         if (norm.size >= 2) {
-            val stepX = (graphRight - graphLeft) / (norm.size - 1)
+            val stepX = (inner.right - inner.left) / (norm.size - 1)
             val points = norm.mapIndexed { i, v ->
-                Pair(graphLeft + stepX * i, graphBottom - v * graphHeight)
+                Pair(inner.left + stepX * i, inner.bottom - v * graphHeight)
             }
             val line = smoothPath(points)
 
             val fill = Path(line)
-            fill.lineTo(graphRight, graphBottom)
-            fill.lineTo(graphLeft, graphBottom)
+            fill.lineTo(inner.right, inner.bottom)
+            fill.lineTo(inner.left, inner.bottom)
             fill.close()
 
-            fillPaint.color = fgColor
-            fillPaint.alpha = 65
+            fillPaint.color = accent
+            fillPaint.alpha = 70
             canvas.drawPath(fill, fillPaint)
 
-            linePaint.color = fgColor
+            linePaint.color = accent
             linePaint.alpha = 255
             canvas.drawPath(line, linePaint)
         }
+
+        drawScanlines(canvas, widthPx, heightPx)
 
         return bmp
     }
@@ -120,38 +205,47 @@ object GraphBitmapRenderer {
         fgColor: Int,
         bgColor: Int,
         widthPx: Int,
-        heightPx: Int
+        heightPx: Int,
+        textSizePx: Float
     ): Bitmap {
         val bmp = Bitmap.createBitmap(widthPx.coerceAtLeast(1), heightPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         canvas.drawColor(bgColor)
 
-        val textSize = heightPx * 0.22f
-        labelPaint.textSize = textSize
-        labelPaint.color = fgColor
-        canvas.drawText("$label ${pct.coerceIn(0, 100)}%", 4f, textSize, labelPaint)
+        val clamped = pct.coerceIn(0, 100)
+        val accent = thresholdColor(fgColor, clamped)
+        val inner = drawPanelChrome(canvas, widthPx, heightPx, "$label $clamped%", fgColor, bgColor, textSizePx)
 
-        val barTop = textSize + 8f
-        val barBottom = heightPx - textSize - 6f
-        val barLeft = 4f
-        val barRight = widthPx - 4f
+        val subTextSize = textSizePx * 0.78f
+        val barTop = inner.top
+        val barBottom = inner.bottom - subTextSize - 4f
+        val barLeft = inner.left
+        val barRight = inner.right
+        val barRadius = 0f // carre, coherent avec le reste du style terminal
+
+        val barRect = RectF(barLeft, barTop, barRight, barBottom.coerceAtLeast(barTop + 4f))
 
         val outline = Paint().apply {
-            color = fgColor; alpha = 100; style = Paint.Style.STROKE; strokeWidth = 2f
+            color = fgColor; alpha = 90; style = Paint.Style.STROKE; strokeWidth = 2f; isAntiAlias = true
         }
-        canvas.drawRect(barLeft, barTop, barRight, barBottom, outline)
+        canvas.drawRoundRect(barRect, barRadius, barRadius, outline)
 
-        val fillWidth = (barRight - barLeft) * (pct.coerceIn(0, 100) / 100f)
-        fillPaint.color = fgColor
-        fillPaint.alpha = 170
-        canvas.drawRect(barLeft, barTop, barLeft + fillWidth, barBottom, fillPaint)
+        val fillWidth = (barRect.right - barRect.left) * (clamped / 100f)
+        if (fillWidth > 1f) {
+            val fillRect = RectF(barRect.left, barRect.top, barRect.left + fillWidth, barRect.bottom)
+            fillPaint.color = accent
+            fillPaint.alpha = 190
+            canvas.drawRoundRect(fillRect, barRadius, barRadius, fillPaint)
+        }
 
         val subPaint = Paint().apply {
-            color = fgColor; alpha = 210; isAntiAlias = true
+            color = fgColor; alpha = 200; isAntiAlias = true
             setTypeface(Typeface.MONOSPACE)
-            this.textSize = textSize * 0.85f
+            textSize = subTextSize
         }
-        canvas.drawText(subtitle, 4f, heightPx - 4f, subPaint)
+        canvas.drawText(subtitle, inner.left, inner.bottom, subPaint)
+
+        drawScanlines(canvas, widthPx, heightPx)
 
         return bmp
     }
@@ -167,57 +261,92 @@ object GraphBitmapRenderer {
         fgColor: Int,
         bgColor: Int,
         widthPx: Int,
-        heightPx: Int
+        heightPx: Int,
+        textSizePx: Float
     ): Bitmap {
         val bmp = Bitmap.createBitmap(widthPx.coerceAtLeast(1), heightPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         canvas.drawColor(bgColor)
 
-        val textSize = heightPx * 0.16f
-        labelPaint.textSize = textSize
-        labelPaint.color = fgColor
-        canvas.drawText("net ↑${upKbps}K/s ↓${downKbps}K/s", 4f, textSize, labelPaint)
+        val inner = drawPanelChrome(
+            canvas, widthPx, heightPx,
+            "net ↑${upKbps}K/s ↓${downKbps}K/s",
+            fgColor, bgColor, textSizePx
+        )
 
-        val graphTop = textSize + 6f
-        val graphBottom = heightPx - 4f
-        val centerY = (graphTop + graphBottom) / 2f
-        val graphLeft = 4f
-        val graphRight = widthPx - 4f
-        val halfHeight = (centerY - graphTop).coerceAtLeast(1f)
+        val centerY = (inner.top + inner.bottom) / 2f
+        val halfHeight = (centerY - inner.top).coerceAtLeast(1f)
 
         gridPaint.color = fgColor
-        gridPaint.alpha = 45
-        canvas.drawLine(graphLeft, centerY, graphRight, centerY, gridPaint)
+        gridPaint.alpha = 40
+        canvas.drawLine(inner.left, centerY, inner.right, centerY, gridPaint)
 
         val maxUp = (upHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
         val maxDown = (downHistory.maxOrNull() ?: 0L).coerceAtLeast(1L)
+        val upAccent = thresholdColor(fgColor, ((upKbps.toFloat() / maxUp) * 100).toInt())
+        val downAccent = thresholdColor(fgColor, ((downKbps.toFloat() / maxDown) * 100).toInt())
 
-        fun drawSide(values: List<Long>, max: Long, goingUp: Boolean) {
+        fun drawSide(values: List<Long>, max: Long, goingUp: Boolean, accent: Int) {
             if (values.size < 2) return
-            val stepX = (graphRight - graphLeft) / (values.size - 1)
+            val stepX = (inner.right - inner.left) / (values.size - 1)
             val points = values.mapIndexed { i, v ->
                 val frac = (v.toFloat() / max).coerceIn(0f, 1f)
                 val y = if (goingUp) centerY - frac * halfHeight else centerY + frac * halfHeight
-                Pair(graphLeft + stepX * i, y)
+                Pair(inner.left + stepX * i, y)
             }
             val line = smoothPath(points)
 
             val fill = Path(line)
-            fill.lineTo(graphRight, centerY)
-            fill.lineTo(graphLeft, centerY)
+            fill.lineTo(inner.right, centerY)
+            fill.lineTo(inner.left, centerY)
             fill.close()
 
-            fillPaint.color = fgColor
+            fillPaint.color = accent
             fillPaint.alpha = 65
             canvas.drawPath(fill, fillPaint)
 
-            linePaint.color = fgColor
+            linePaint.color = accent
             linePaint.alpha = 255
             canvas.drawPath(line, linePaint)
         }
 
-        drawSide(upHistory, maxUp, goingUp = true)
-        drawSide(downHistory, maxDown, goingUp = false)
+        drawSide(upHistory, maxUp, goingUp = true, upAccent)
+        drawSide(downHistory, maxDown, goingUp = false, downAccent)
+
+        drawScanlines(canvas, widthPx, heightPx)
+
+        return bmp
+    }
+
+    // header en bitmap pour la meme coherence visuelle (cadre) que les
+    // autres panels, au lieu d'un TextView plat qui flotte sans chrome
+    fun renderHeader(
+        username: String,
+        hostname: String,
+        uptime: String,
+        clock: String,
+        date: String,
+        fgColor: Int,
+        bgColor: Int,
+        widthPx: Int,
+        heightPx: Int,
+        textSizePx: Float
+    ): Bitmap {
+        val bmp = Bitmap.createBitmap(widthPx.coerceAtLeast(1), heightPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        canvas.drawColor(bgColor)
+
+        val inner = drawPanelChrome(canvas, widthPx, heightPx, "$username@$hostname", fgColor, bgColor, textSizePx)
+
+        val infoPaint = Paint().apply {
+            color = fgColor; alpha = 220; isAntiAlias = true
+            setTypeface(Typeface.MONOSPACE)
+            textSize = textSizePx * 0.85f
+        }
+        val line = "$clock  $date  up $uptime"
+        canvas.drawText(line, inner.left, inner.bottom, infoPaint)
+
+        drawScanlines(canvas, widthPx, heightPx)
 
         return bmp
     }

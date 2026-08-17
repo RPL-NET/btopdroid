@@ -13,10 +13,10 @@ class BtopWidgetProvider : AppWidgetProvider() {
     companion object {
         const val ACTION_REFRESH = "ca.rplnet.btopwidget.ACTION_REFRESH"
 
-        // repartition approximative de la hauteur dispo entre les 5 panels,
-        // doit rester en phase avec les layout_weight du XML (1:1:0.8:0.8:1.2)
-        private const val TOTAL_WEIGHT = 4.8f
-        private const val HEADER_PX_ESTIMATE = 60
+        // repartition approximative de la hauteur dispo entre le header et
+        // les 5 panels, doit rester en phase avec les layout_weight du XML
+        private const val HEADER_WEIGHT = 0.7f
+        private const val TOTAL_WEIGHT = 5.5f // header(0.7) + cpu(1) + ram(1) + bat(0.8) + dsk(0.8) + net(1.2)
 
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
             val stats = SystemStats.collect(context)
@@ -36,27 +36,41 @@ class BtopWidgetProvider : AppWidgetProvider() {
 
             val size = WidgetSizing.get(context, appWidgetManager, widgetId)
             val panelWidth = size.widthPx
-            val availableHeight = (size.heightPx - HEADER_PX_ESTIMATE).coerceAtLeast(60)
+            val availableHeight = (size.heightPx - 12).coerceAtLeast(80) // 12px = padding du root layout
             val unitHeight = (availableHeight / TOTAL_WEIGHT).toInt()
+            val headerHeight = (unitHeight * HEADER_WEIGHT).toInt()
             val meterHeight = (unitHeight * 0.8f).toInt()
             val netHeight = (unitHeight * 1.2f).toInt()
+            // taille de police UNIQUE pour tous les panels, calculee sur le
+            // plus petit panel (meter) — sinon chaque bitmap dessine sa
+            // propre taille proportionnelle a SA hauteur et ca devient
+            // incoherent d'un panel a l'autre (cpu/ram plus gros texte que
+            // bat/dsk juste parce que leur panel est plus haut)
+            val textSizePx = (meterHeight * 0.22f).coerceAtLeast(10f)
 
             val views = RemoteViews(context.packageName, R.layout.widget_btop)
-            views.setTextViewText(R.id.widget_header, BtopRenderer.renderHeader(stats, username, hostname))
-            views.setTextColor(R.id.widget_header, fg)
             views.setInt(R.id.widget_root, "setBackgroundColor", bg)
+
+            views.setImageViewBitmap(
+                R.id.widget_header,
+                GraphBitmapRenderer.renderHeader(
+                    username, hostname, stats.uptimeStr, stats.clock, stats.date,
+                    fg, bg, panelWidth, headerHeight, textSizePx
+                )
+            )
 
             views.setImageViewBitmap(
                 R.id.graph_cpu,
                 GraphBitmapRenderer.renderAreaGraph(
                     cpuHistory, "cpu(${stats.cpuSource})", (stats.cpuPct?.toString() ?: "n/a") + "%",
-                    fg, bg, panelWidth, unitHeight
+                    stats.cpuPct ?: 0, fg, bg, panelWidth, unitHeight, textSizePx
                 )
             )
             views.setImageViewBitmap(
                 R.id.graph_ram,
                 GraphBitmapRenderer.renderAreaGraph(
-                    ramHistory, "ram", "${stats.ramUsedPct}%", fg, bg, panelWidth, unitHeight
+                    ramHistory, "ram", "${stats.ramUsedPct}%", stats.ramUsedPct,
+                    fg, bg, panelWidth, unitHeight, textSizePx
                 )
             )
             val batChargeTag = if (stats.charging) "chg" else "bat"
@@ -65,7 +79,7 @@ class BtopWidgetProvider : AppWidgetProvider() {
                 GraphBitmapRenderer.renderMeter(
                     stats.batteryPct, batChargeTag,
                     "%.1fV  %.0fC".format(stats.batteryVoltageV, stats.batteryTempC),
-                    fg, bg, panelWidth, meterHeight
+                    fg, bg, panelWidth, meterHeight, textSizePx
                 )
             )
             views.setImageViewBitmap(
@@ -73,14 +87,14 @@ class BtopWidgetProvider : AppWidgetProvider() {
                 GraphBitmapRenderer.renderMeter(
                     stats.storageUsedPct, "dsk",
                     "%.1fG / %.1fG".format(stats.storageUsedGb, stats.storageTotalGb),
-                    fg, bg, panelWidth, meterHeight
+                    fg, bg, panelWidth, meterHeight, textSizePx
                 )
             )
             views.setImageViewBitmap(
                 R.id.graph_net,
                 GraphBitmapRenderer.renderNetMirror(
                     netUpHistory, netDownHistory, stats.netUpKbps, stats.netDownKbps,
-                    fg, bg, panelWidth, netHeight
+                    fg, bg, panelWidth, netHeight, textSizePx
                 )
             )
 
