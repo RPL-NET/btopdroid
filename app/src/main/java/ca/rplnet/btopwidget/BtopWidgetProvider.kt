@@ -14,9 +14,9 @@ class BtopWidgetProvider : AppWidgetProvider() {
         const val ACTION_REFRESH = "ca.rplnet.btopwidget.ACTION_REFRESH"
 
         // repartition approximative de la hauteur dispo entre le header et
-        // les 5 panels, doit rester en phase avec les layout_weight du XML
+        // les 6 panels, doit rester en phase avec les layout_weight du XML
         private const val HEADER_WEIGHT = 0.7f
-        private const val TOTAL_WEIGHT = 5.5f // header(0.7) + cpu(1) + ram(1) + bat(0.8) + dsk(0.8) + net(1.2)
+        private const val TOTAL_WEIGHT = 6.5f // header(0.7)+cpu(1)+ram(1)+bat(0.8)+dsk(0.8)+net(1.2)+netinfo(1)
 
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
             val stats = SystemStats.collect(context)
@@ -33,6 +33,7 @@ class BtopWidgetProvider : AppWidgetProvider() {
             }
             val netUpHistory = HistoryStore.pushRaw(context, "netup", stats.netUpKbps)
             val netDownHistory = HistoryStore.pushRaw(context, "netdown", stats.netDownKbps)
+            val netInfo = NetworkInfo.collect(context)
 
             val size = WidgetSizing.get(context, appWidgetManager, widgetId)
             val panelWidth = size.widthPx
@@ -96,6 +97,12 @@ class BtopWidgetProvider : AppWidgetProvider() {
                 GraphBitmapRenderer.renderNetMirror(
                     netUpHistory, netDownHistory, stats.netUpKbps, stats.netDownKbps,
                     fg, bg, panelWidth, netHeight, textSizePx
+                )
+            )
+            views.setImageViewBitmap(
+                R.id.panel_netinfo,
+                GraphBitmapRenderer.renderNetInfo(
+                    netInfo, fg, bg, panelWidth, unitHeight, textSizePx
                 )
             )
 

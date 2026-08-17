@@ -54,4 +54,12 @@
         android:layout_marginTop="3dp"
         android:scaleType="fitXY" />
 
+    <ImageView
+        android:id="@+id/panel_netinfo"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="3dp"
+        android:scaleType="fitXY" />
+
 </LinearLayout>

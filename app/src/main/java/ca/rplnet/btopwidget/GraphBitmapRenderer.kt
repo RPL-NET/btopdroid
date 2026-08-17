@@ -367,4 +367,50 @@ object GraphBitmapRenderer {
 
         return bmp
     }
+
+    // panel texte simple (pas de graph) — type de connexion, IP, operateur,
+    // wifi ssid/signal et bluetooth si les permissions ont ete accordees
+    fun renderNetInfo(
+        info: NetInfo,
+        fgColor: Int,
+        bgColor: Int,
+        widthPx: Int,
+        heightPx: Int,
+        textSizePx: Float
+    ): Bitmap {
+        val bmp = Bitmap.createBitmap(widthPx.coerceAtLeast(1), heightPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        canvas.drawColor(bgColor)
+
+        val inner = drawPanelChrome(canvas, widthPx, heightPx, "netinfo", fgColor, bgColor, textSizePx)
+
+        val textPaint = Paint().apply {
+            color = fgColor; alpha = 220; isAntiAlias = true
+            setTypeface(Typeface.MONOSPACE)
+            textSize = textSizePx * 0.78f
+        }
+        val lineHeight = textPaint.textSize * 1.35f
+
+        val lines = mutableListOf<String>()
+        val connLabel = if (info.airplaneMode) "avion" else info.connType
+        lines.add("conn ${connLabel}  ip ${info.ipAddress ?: "?"}")
+        if (info.carrier != null) lines.add("operateur ${info.carrier}")
+        if (info.wifiSsid != null) {
+            lines.add("wifi ${info.wifiSsid}  ${info.wifiRssi ?: "?"}dBm")
+        }
+        if (info.btConnectedCount != null) {
+            lines.add("bt appareils lies: ${info.btConnectedCount}")
+        }
+
+        var y = inner.top + textPaint.textSize
+        for (l in lines) {
+            if (y > inner.bottom) break
+            canvas.drawText(l, inner.left, y, textPaint)
+            y += lineHeight
+        }
+
+        drawScanlines(canvas, widthPx, heightPx)
+
+        return bmp
+    }
 }

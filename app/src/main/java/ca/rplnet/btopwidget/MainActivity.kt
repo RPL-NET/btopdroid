@@ -17,6 +17,12 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
+    private val netPermsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        pushWidgetUpdate()
+    }
+
     private val pickFolderLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -65,6 +71,14 @@ class MainActivity : AppCompatActivity() {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("btopdroid setup", TermuxSetup.command(currentFolderName())))
             Toast.makeText(this, "Commande copiée — colle-la dans Termux", Toast.LENGTH_LONG).show()
+        }
+
+        findViewById<Button>(R.id.btn_grant_net_perms).setOnClickListener {
+            val perms = mutableListOf(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                perms.add(android.Manifest.permission.BLUETOOTH_CONNECT)
+            }
+            netPermsLauncher.launch(perms.toTypedArray())
         }
 
         findViewById<Button>(R.id.btn_pick_termux_folder).setOnClickListener {
